@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト管理システム</title>
+    <!-- Tailwind CSSとFont AwesomeをCDNで読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- 外部CSSファイルを読み込み -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-100 text-slate-800">
+    <div class="container mx-auto p-4 md:p-6 lg:p-8">
+        <header class="bg-white shadow-md rounded-lg p-6 mb-8">
+            <div class="flex flex-wrap justify-between items-center gap-4">
+                <h1 class="text-3xl font-bold text-slate-700">シフト管理システム</h1>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <span id="currentUserInfo" class="text-sm text-slate-500 block"></span>
+                    </div>
+                    <select id="roleSwitcher" class="p-2 border border-slate-300 rounded-md shadow-sm text-sm">
+                    </select>
+                </div>
+            </div>
+            <nav class="mt-4 border-t pt-4 flex flex-wrap gap-2">
+                <button id="showCalendarViewBtn" class="nav-button bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+                    <i class="fas fa-calendar-alt mr-2"></i>カレンダー表示
+                </button>
+                <button id="showDailyChartViewBtn" class="nav-button bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg">
+                    <i class="fas fa-chart-bar mr-2"></i>日別グラフ表示
+                </button>
+                <button id="showBulkShiftViewBtn" class="nav-button bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg">
+                    <i class="fas fa-table mr-2"></i>一括シフト表示
+                </button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- カレンダー表示エリア -->
+            <div id="calendarView" class="main-view bg-white shadow-md rounded-lg p-6">
+                <!-- JavaScriptによって動的に生成されます -->
+            </div>
+
+            <!-- 日別グラフ表示エリア -->
+            <div id="dailyChartView" class="main-view bg-white shadow-md rounded-lg p-6 hidden">
+                <!-- JavaScriptによって動的に生成されます -->
+            </div>
+            
+            <!-- 一括シフト表示エリア -->
+            <div id="bulkShiftView" class="main-view bg-white shadow-md rounded-lg p-6 hidden">
+                <h2 class="text-2xl font-semibold mb-4 text-slate-700">一括シフト表示・作成</h2>
+                <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
+                    <div class="flex items-center">
+                        <button id="prevMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-l-lg transition"><i class="fas fa-angle-double-left"></i> 前月</button>
+                        <span id="bulkShiftMonthYear" class="font-semibold text-lg mx-4 text-slate-700"></span>
+                        <button id="nextMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-r-lg transition">次月 <i class="fas fa-angle-double-right"></i></button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-slate-600">表示範囲:</span>
+                        <button id="toggleBulkShiftPeriodBtn" class="bg-sky-500 hover:bg-sky-600 text-white text-sm py-2 px-3 rounded-lg transition">前半 (1-15日)</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table id="bulkShiftTable" class="min-w-full border-collapse border border-slate-300 bulk-shift-table">
+                        <thead>
+                            <tr id="bulkShiftTableDateHeader"></tr>
+                        </thead>
+                        <tbody id="bulkShiftTableBody"></tbody>
+                        <tfoot>
+                            <tr id="bulkShiftTableBreakTimesRow" class="bg-slate-50"></tr>
+                            <tr id="bulkShiftTableShortageHoursRow" class="bg-slate-50"></tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- シフト詳細モーダル -->
+        <div id="shiftDetailModal" class="modal">
+            <div class="modal-content" id="modalContent">
+                <!-- JavaScriptによって動的に生成されます -->
+            </div>
+        </div>
+
+        <footer class="text-center text-sm text-slate-500 mt-8 pb-4">
+            &copy; <span id="currentYear"></span> シフト管理システム
+        </footer>
+    </div>
+
+    <!-- Chart.js とアダプタを読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <!-- 外部JavaScriptファイルを読み込み -->
+    <script src="js/script.js"></script>
+</body>
+</html>
