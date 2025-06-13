@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', function() {
             options: {
                 indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                 scales: {
-                    x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' }, tooltipFormat: 'HH:mm' }, min: chartMinTime.getTime(), max: chartMaxTime.getTime(), title: { display: true, text: '時間' } },
+                    x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: '' }, tooltipFormat: '' }, min: chartMinTime.getTime(), max: chartMaxTime.getTime(), title: { display: true, text: '時間' } },
                     y: { type: 'category', labels: yLabels, title: { display: true, text: '従業員' }, offset: true }
                 },
                 plugins: {
@@ -335,7 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
                 let shiftText = shift ? shift.time : "";
                 if (currentUser.role === 'manager') {
-                    rowHtml += `<td><input type="text" value="${shiftText}" data-user-id="${user.id}" data-date="${dateString}" placeholder="HH:mm-HH:mm"></td>`;
+                    rowHtml += `<td><input type="text" value="${shiftText}" data-user-id="${user.id}" data-date="${dateString}" placeholder=""></td>`;
                 } else { rowHtml += `<td>${shiftText}</td>`; }
             });
             rowHtml += '</tr>';
@@ -346,18 +346,18 @@ document.addEventListener('DOMContentLoaded', function() {
         days.forEach(dateString => {
             const manuallyEnteredBreak = appState.manualBreaks[dateString] || '';
             if (currentUser.role === 'manager') {
-                 breakTimesRowHtml += `<td><input type="text" class="break-time-input" value="${manuallyEnteredBreak}" placeholder="例: 12-13, 15-15.5" data-date="${dateString}"></td>`;
+                 breakTimesRowHtml += `<td><input type="text" class="break-time-input" value="${manuallyEnteredBreak}" placeholder="" data-date="${dateString}"></td>`;
             } else {
                 breakTimesRowHtml += `<td class="break-time-display">${manuallyEnteredBreak || ''}</td>`; 
             }
         });
         breakRow.innerHTML = breakTimesRowHtml;
 
-        let shortageRowHtml = '<tr><th class="font-semibold">不足時間帯</th>'; 
+        let shortageRowHtml = '<tr><th class="font-semibold">不足</th>'; 
         days.forEach(dateString => {
             const manuallyEnteredShortage = appState.manualShortages[dateString] || '';
             if (currentUser.role === 'manager') {
-                 shortageRowHtml += `<td><input type="text" class="shortage-input" value="${manuallyEnteredShortage}" placeholder="例: 09:00-10:00" data-date="${dateString}"></td>`;
+                 shortageRowHtml += `<td><input type="text" class="shortage-input" value="${manuallyEnteredShortage}" placeholder="" data-date="${dateString}"></td>`;
             } else {
                 shortageRowHtml += `<td class="shortage-input">${manuallyEnteredShortage || ''}</td>`; 
             }
