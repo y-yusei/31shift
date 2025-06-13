@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
+    const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev';
     let dailyShiftChartInstance = null;
     let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
     let currentUser = null; 
