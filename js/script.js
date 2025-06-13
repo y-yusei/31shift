@@ -1,6 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- ★★★ 重要 ★★★ ---
-    // wrangler deploy後に表示されるWorkerのURLに書き換えてください
     const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
     
     // アプリケーションの状態を管理するオブジェクト
@@ -81,8 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- UIの描画 ---
-    // (renderCalendar, renderDailyShiftChart, renderBulkShiftTableなどの描画関数は
-    //  appStateからデータを読み取るように変更されていますが、ロジック自体はほぼ同じです)
     
     function setActiveNavButton(activeViewKey) {
         Object.keys(navButtons).forEach(key => {

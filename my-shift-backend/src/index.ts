@@ -6,15 +6,24 @@ export interface Env {
 
 const router = Router();
 
+// プリフライトリクエスト(OPTIONS)に応答するためのハンドラ
+// これがないと、ブラウザは本番のリクエストを送信する前に通信をブロックします。
 router.options('*', () => {
 	return new Response(null, {
 		headers: {
-			'Access-Control-Allow-Origin': '*', // すべてのオリジンからのアクセスを許可
-			'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS', // 許可するHTTPメソッド
-			'Access-Control-Allow-Headers': 'Content-Type, Authorization', // 許可するリクエストヘッダー
+			'Access-Control-Allow-Origin': '*',
+			'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+			'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+			'Access-Control-Max-Age': '86400', // プリフライトの結果をキャッシュする時間（秒）
 		},
 	});
 });
+
+// ルートパス ("/") へのアクセス時に、サーバーが正常に応答するための処理
+router.get('/', () => {
+    return new Response('Shift Management API is running!', { headers: { 'Content-Type': 'text/plain' } });
+});
+
 
 // 特定の月の全データを取得するAPI
 router.get('/api/data', async (request, env: Env) => {
@@ -111,15 +120,34 @@ router.all('*', () => new Response('404, not found!', { status: 404 }));
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-        // router.handle() でリクエストを処理し、その応答を取得
-        const response = await router.handle(request, env);
-
-        // ★★★ すべての応答にCORSヘッダーを付与する ★★★
+        
+        // ★★★ CORS対応の最終手段 ★★★
+        // プリフライトリクエスト(OPTIONS)には、即座にCORSヘッダーを付けて応答する
+        if (request.method === 'OPTIONS') {
+            return new Response(null, {
+                headers: {
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                    'Access-Control-Max-Age': '86400',
+                },
+            });
+        }
+        
+        let response;
+        try {
+            // ルーターでリクエストを処理
+            response = await router.handle(request, env);
+        } catch (error: any) {
+            // ルーター内でエラーが発生した場合
+            console.error("Unhandled error in router:", error);
+            response = new Response("Internal Server Error", { status: 500 });
+        }
+        
+        // 応答のヘッダーを安全にクローンしてCORSヘッダーを追加
         const newHeaders = new Headers(response.headers);
         newHeaders.set('Access-Control-Allow-Origin', '*');
-        newHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        newHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
+        
         return new Response(response.body, {
             status: response.status,
             statusText: response.statusText,
