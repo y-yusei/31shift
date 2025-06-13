@@ -20,6 +20,7 @@
                         <span id="currentUserInfo" class="text-sm text-slate-500 block"></span>
                     </div>
                     <select id="roleSwitcher" class="p-2 border border-slate-300 rounded-md shadow-sm text-sm">
+                        <!-- JSで動的に生成 -->
                     </select>
                 </div>
             </div>
@@ -37,49 +38,16 @@
         </header>
 
         <main>
-            <!-- カレンダー表示エリア -->
-            <div id="calendarView" class="main-view bg-white shadow-md rounded-lg p-6">
-                <!-- JavaScriptによって動的に生成されます -->
-            </div>
-
-            <!-- 日別グラフ表示エリア -->
-            <div id="dailyChartView" class="main-view bg-white shadow-md rounded-lg p-6 hidden">
-                <!-- JavaScriptによって動的に生成されます -->
-            </div>
-            
-            <!-- 一括シフト表示エリア -->
-            <div id="bulkShiftView" class="main-view bg-white shadow-md rounded-lg p-6 hidden">
-                <h2 class="text-2xl font-semibold mb-4 text-slate-700">一括シフト表示・作成</h2>
-                <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
-                    <div class="flex items-center">
-                        <button id="prevMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-l-lg transition"><i class="fas fa-angle-double-left"></i> 前月</button>
-                        <span id="bulkShiftMonthYear" class="font-semibold text-lg mx-4 text-slate-700"></span>
-                        <button id="nextMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-r-lg transition">次月 <i class="fas fa-angle-double-right"></i></button>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-slate-600">表示範囲:</span>
-                        <button id="toggleBulkShiftPeriodBtn" class="bg-sky-500 hover:bg-sky-600 text-white text-sm py-2 px-3 rounded-lg transition">前半 (1-15日)</button>
-                    </div>
-                </div>
-                <div class="overflow-x-auto">
-                    <table id="bulkShiftTable" class="min-w-full border-collapse border border-slate-300 bulk-shift-table">
-                        <thead>
-                            <tr id="bulkShiftTableDateHeader"></tr>
-                        </thead>
-                        <tbody id="bulkShiftTableBody"></tbody>
-                        <tfoot>
-                            <tr id="bulkShiftTableBreakTimesRow" class="bg-slate-50"></tr>
-                            <tr id="bulkShiftTableShortageHoursRow" class="bg-slate-50"></tr>
-                        </tfoot>
-                    </table>
-                </div>
-            </div>
+            <!-- 各ビューのコンテナ。中身はJSで生成 -->
+            <div id="calendarView" class="main-view bg-white shadow-md rounded-lg p-6"></div>
+            <div id="dailyChartView" class="main-view bg-white shadow-md rounded-lg p-6 hidden"></div>
+            <div id="bulkShiftView" class="main-view bg-white shadow-md rounded-lg p-6 hidden"></div>
         </main>
 
         <!-- シフト詳細モーダル -->
         <div id="shiftDetailModal" class="modal">
             <div class="modal-content" id="modalContent">
-                <!-- JavaScriptによって動的に生成されます -->
+                <!-- JSで動的に生成 -->
             </div>
         </div>
 
