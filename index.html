@@ -176,13 +176,12 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const credentials = {
-            manager: { password: 'pass123', role: 'manager' },
-            user: { password: 'pass123', role: 'employee' }
-        };
-        
+        // --- ★★★ このファイルをデプロイする前に、必ず正しいURLに書き換えてください ★★★ ---
+        const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
+
         let currentUser = null; 
 
+        // --- DOM要素 ---
         const loginScreen = document.getElementById('loginScreen');
         const appContainer = document.getElementById('appContainer');
         const loginIdInput = document.getElementById('loginId');
@@ -191,51 +190,48 @@
         const logoutBtn = document.getElementById('logoutBtn');
         const loginError = document.getElementById('loginError');
         
-        const handleLogin = async () => {
+        // --- ログイン処理 ---
+        async function handleLogin() {
             const id = loginIdInput.value.toLowerCase();
             const password = loginPasswordInput.value;
             loginError.textContent = '';
             
             try {
-                const response = await fetch(initializeApp.API_BASE_URL, {
+                const response = await fetch(`${API_BASE_URL}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: id, password: password })
                 });
 
-                if (!response.ok) {
-                    throw new Error('Invalid credentials');
-                }
                 const data = await response.json();
 
-                if (data.success) {
+                if (response.ok && data.success) {
                     currentUser = data.user;
                     loginScreen.classList.add('hidden');
                     appContainer.classList.remove('hidden');
-                    initializeApp(currentUser);
+                    initializeApp();
                 } else {
                     loginError.textContent = 'IDまたはパスワードが正しくありません。';
                 }
             } catch (error) {
                 console.error("ログインエラー:", error);
-                loginError.textContent = 'ログイン処理中にエラーが発生しました。';
+                loginError.textContent = 'ログイン処理中にエラーが発生しました。サーバーが起動しているか確認してください。';
             }
-        };
+        }
 
-        const handleLogout = () => {
+        function handleLogout() {
             currentUser = null;
             appContainer.classList.add('hidden');
             loginScreen.classList.remove('hidden');
             loginPasswordInput.value = '';
-        };
+        }
         
         loginBtn.addEventListener('click', handleLogin);
         logoutBtn.addEventListener('click', handleLogout);
         loginPasswordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
 
-        function initializeApp(loggedInUser) {
-            const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
-            
+        // --- アプリケーション本体の初期化とロジック ---
+        function initializeApp() {
             let dailyShiftChartInstance = null;
             let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
             
@@ -278,7 +274,6 @@
             let bulkViewDisplayMonth = new Date(2025, 5, 1);
             let bulkViewIsFirstHalf = true;
             let selectedEmployeeForHighlight = null;
-            const EMPLOYEE_VIEW_ID = 0;
             
             const dummyEvents = { 
                 '2025-06-01': { text: '特売日', icon: 'fas fa-tags' },
@@ -363,7 +358,7 @@
             }
             
             function updateUserInfo() {
-                 currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${loggedInUser.name}</span>`;
+                 currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`;
             }
 
             function setActiveNavButton(activeViewKey) {
@@ -593,21 +588,21 @@
                 document.getElementById('toggleBulkShiftPeriodBtn').textContent = bulkViewIsFirstHalf ? '前半 (1-15日)' : `後半 (16-${lastDayOfMonth}日)`;
             }
             
-            function handleManualShortageInputChange(event) {
+            async function handleManualShortageInputChange(event) {
                 const input = event.target;
                 const date = input.dataset.date;
                 const shortages = input.value.trim();
-                updateManualData(date, undefined, shortages).then(success => {
-                    if(success) appState.manualShortages[date] = shortages;
-                });
+                if(await updateManualData(date, undefined, shortages)) {
+                    appState.manualShortages[date] = shortages;
+                }
             }
-            function handleManualBreakInputChange(event) {
+            async function handleManualBreakInputChange(event) {
                 const input = event.target;
                 const date = input.dataset.date;
                 const breaks = input.value.trim();
-                updateManualData(date, breaks, undefined).then(success => {
-                    if(success) appState.manualBreaks[date] = breaks;
-                });
+                if(await updateManualData(date, breaks, undefined)) {
+                    appState.manualBreaks[date] = breaks;
+                }
             }
             async function handleBulkShiftInputChange(event) {
                 const input = event.target;
@@ -682,12 +677,11 @@
                 }
                 shiftDetailModal.style.display = 'block';
             }
-            
-            updateUserInfo();
-            navButtons.calendar.addEventListener('click', () => switchView('calendar'));
-            navButtons.dailyChart.addEventListener('click', () => switchView('dailyChart'));
-            navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
 
+            // --- イベントリスナー設定 ---
+            Object.keys(navButtons).forEach(key => {
+                navButtons[key].addEventListener('click', () => switchView(key));
+            });
             prevMonthBtn.addEventListener('click', async () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); await fetchDataForMonth(calendarDisplayDate); });
             nextMonthBtn.addEventListener('click', async () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); await fetchDataForMonth(calendarDisplayDate); });
             employeeHighlightSelect.addEventListener('change', (e) => { selectedEmployeeForHighlight = e.target.value ? parseInt(e.target.value) : null; renderCalendar();});
@@ -699,6 +693,8 @@
             toggleBulkShiftPeriodBtn.addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
             shiftDetailModal.addEventListener('click', (event) => { if (event.target === shiftDetailModal) shiftDetailModal.style.display = 'none'; });
             
+            // --- 初期化処理 ---
+            updateUserInfo();
             switchView('calendar');
         }
     });
