@@ -158,7 +158,6 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // ★★★ 修正点: 正しいURLに書き換え ★★★
         const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
         
         let dailyShiftChartInstance = null;
@@ -230,6 +229,7 @@
             manualShortages: {},
         };
 
+        // --- ユーティリティ関数 ---
         function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
         function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
         function formatDateToJapanese(date) { return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 (${['日', '月', '火', '水', '木', '金', '土'][date.getDay()]})`; }
@@ -243,6 +243,7 @@
             return date;
         }
 
+        // --- データ通信 ---
         async function fetchDataForMonth(date) {
             const year = date.getFullYear();
             const month = ('0' + (date.getMonth() + 1)).slice(-2);
@@ -315,11 +316,11 @@
             }
         }
         
+        // --- UI制御 ---
         function setActiveNavButton(activeViewKey) {
             Object.keys(navButtons).forEach(key => {
-                const button = navButtons[key];
-                button.classList.remove('active');
-                if (key === activeViewKey) button.classList.add('active');
+                navButtons[key].classList.remove('active');
+                if (key === activeViewKey) navButtons[key].classList.add('active');
             });
         }
 
@@ -328,9 +329,14 @@
             setActiveNavButton(viewKey);
             
             let targetDate;
-            if (viewKey === 'calendar') targetDate = calendarDisplayDate;
-            else if (viewKey === 'dailyChart') targetDate = chartDisplayDate;
-            else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
+            if (viewKey === 'calendar') {
+                targetDate = calendarDisplayDate;
+            } else if (viewKey === 'dailyChart') {
+                targetDate = chartDisplayDate;
+                currentChartDateInput.value = formatDate(chartDisplayDate); 
+            } else if (viewKey === 'bulkShift') {
+                targetDate = bulkViewDisplayMonth;
+            }
             
             await fetchDataForMonth(targetDate);
         }
@@ -341,8 +347,9 @@
             else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
         }
 
+        // --- UI描画関数 ---
         function renderCalendar() {
-            if (!calendarGrid || !calendarMonthYear || !employeeHighlightSelect) return; 
+            if (!calendarGrid) return; 
 
             calendarGrid.innerHTML = '';
             const year = calendarDisplayDate.getFullYear();
