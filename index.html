@@ -176,16 +176,18 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // --- ログイン情報 (本来はサーバーサイドで管理) ---
         const credentials = {
             manager: { password: 'pass123', role: 'manager' },
             user: { password: 'pass123', role: 'employee' }
         };
-        const staticUsers = [
+        const staticUsersForLogin = [
             { id: 1, name: '田中一郎', role: 'manager' },
         ];
         
         let currentUser = null; 
 
+        // --- DOM要素 ---
         const loginScreen = document.getElementById('loginScreen');
         const appContainer = document.getElementById('appContainer');
         const loginIdInput = document.getElementById('loginId');
@@ -194,6 +196,7 @@
         const logoutBtn = document.getElementById('logoutBtn');
         const loginError = document.getElementById('loginError');
         
+        // --- ログイン処理 ---
         function handleLogin() {
             const id = loginIdInput.value.toLowerCase();
             const password = loginPasswordInput.value;
@@ -205,7 +208,7 @@
                 appContainer.classList.remove('hidden');
                 
                 if (userCredential.role === 'manager') {
-                    currentUser = staticUsers.find(u => u.role === 'manager');
+                    currentUser = staticUsersForLogin.find(u => u.role === 'manager');
                 } else {
                     currentUser = { id: 0, name: '従業員', role: 'employee_viewer' };
                 }
@@ -227,48 +230,12 @@
         logoutBtn.addEventListener('click', handleLogout);
         loginPasswordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
 
+        // --- ★★★ ログイン後のアプリケーション初期化関数 ★★★ ---
         function initializeApp() {
+            const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
+            
             let dailyShiftChartInstance = null;
-            let appState = {
-                users: [
-                    { id: 1, name: '田中一郎', role: 'manager' }, { id: 2, name: '佐藤花子', role: 'employee' },
-                    { id: 3, name: '鈴木三郎', role: 'employee' },
-                ],
-                shifts: {
-                    '2025-06-01': [ { userId: 1, fullName: '田中一郎', time: '09:00 - 18:00', breakTime: '13:00 - 14:00', role: 'manager', notes: '週末対応' },{ userId: 2, fullName: '佐藤花子', time: '10:00 - 19:00', breakTime: '14:00 - 15:00', role: 'employee', notes: 'レジ応援' },{ userId: 5, fullName: '高橋美咲', time: '12:00 - 21:00', role: 'employee', notes: '' }, ],
-                    '2025-06-02': [ { userId: 3, fullName: '鈴木三郎', time: '09:00 - 17:00', breakTime: '12:00 - 13:00', role: 'employee', notes: '早番' },{ userId: 6, fullName: '伊藤健太', time: '13:00 - 21:00', role: 'employee', notes: '遅番' }, ],
-                    '2025-06-03': [ { userId: 4, fullName: '山田太郎', time: '09:00 - 15:00', role: 'employee', notes: '' },{ userId: 7, fullName: '渡辺直子', time: '15:00 - 21:00', breakTime: '17:30 - 18:00', role: 'employee', notes: '' }, ],
-                    '2025-06-04': [ { userId: 1, fullName: '田中一郎', time: '10:00 - 19:00', breakTime: '14:00 - 15:00', role: 'manager', notes: 'ミーティング' },{ userId: 8, fullName: '山本敬子', time: '09:00 - 17:00', breakTime: '13:00 - 13:45', role: 'employee', notes: '' },{ userId: 9, fullName: '中村修平', time: '11:00 - 20:00', role: 'employee', notes: '研修' }, ],
-                    '2025-06-05': [ { userId: 5, fullName: '高橋美咲', time: '09:00 - 18:00', breakTime: '12:00 - 13:00', role: 'employee', notes: '商品陳列' },{ userId: 11, fullName: '加藤大輔', time: '12:00 - 21:00', breakTime: '16:00 - 17:00', role: 'employee', notes: '' }, ],
-                    '2025-06-06': [ { userId: 2, fullName: '佐藤花子', time: '13:00 - 21:00', breakTime: '17:00 - 17:30', role: 'employee', notes: '' },{ userId: 10, fullName: '小林明美', time: '09:00 - 18:00', breakTime: '12:00 - 13:00', role: 'employee', notes: '新人教育' }, ],
-                    '2025-06-07': [ { userId: 1, fullName: '田中一郎', time: '09:00 - 18:00', breakTime: '12:30 - 13:30', role: 'manager', notes: '全体MTG' },{ userId: 2, fullName: '佐藤花子', time: '09:00 - 17:00', role: 'employee', notes: '早番リーダー' },{ userId: 4, fullName: '山田太郎', time: '13:00 - 21:00', breakTime: '17:00 - 17:45', role: 'employee', notes: '遅番' },{ userId: 11, fullName: '加藤大輔', time: '10:00 - 16:00', role: 'employee', notes: 'ヘルプ' } ],
-                    '2025-06-08': [ { userId: 3, fullName: '鈴木三郎', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: ''},{ userId: 6, fullName: '伊藤健太', time: '09:00 - 17:00', breakTime: '12:00-13:00', role: 'employee', notes: ''} ],
-                    '2025-06-09': [ { userId: 5, fullName: '高橋美咲', time: '12:00 - 21:00', breakTime: '16:00-17:00', role: 'employee', notes: ''},{ userId: 7, fullName: '渡辺直子', time: '09:00 - 18:00', breakTime: '13:00-14:00', role: 'employee', notes: ''} ],
-                    '2025-06-10': [ { userId: 8, fullName: '山本敬子', time: '11:00 - 20:00', breakTime: '15:00-16:00', role: 'employee', notes: ''},{ userId: 9, fullName: '中村修平', time: '09:00 - 17:00', breakTime: '12:00-13:00', role: 'employee', notes: ''} ],
-                    '2025-06-11': [ { userId: 1, fullName: '田中一郎', time: '09:00 - 17:00', role: 'manager', notes: '事務作業'},{ userId: 10, fullName: '小林明美', time: '13:00 - 21:00', breakTime: '17:00-17:30', role: 'employee', notes: ''} ],
-                    '2025-06-12': [ { userId: 11, fullName: '加藤大輔', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: ''},{ userId: 2, fullName: '佐藤花子', time: '09:00 - 17:00', breakTime: '12:00-13:00', role: 'employee', notes: ''} ],
-                    '2025-06-13': [ { userId: 3, fullName: '鈴木三郎', time: '12:00 - 21:00', breakTime: '16:00-17:00', role: 'employee', notes: ''},{ userId: 6, fullName: '伊藤健太', time: '09:00 - 18:00', breakTime: '13:00-14:00', role: 'employee', notes: ''} ],
-                    '2025-06-14': [ { userId: 4, fullName: '山田太郎', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: '週末早番'},{ userId: 7, fullName: '渡辺直子', time: '12:00 - 21:00', role: 'employee', notes: '週末遅番'} ],
-                    '2025-06-15': [ { userId: 5, fullName: '高橋美咲', time: '09:00 - 18:00', breakTime: '13:00 - 14:00', role: 'employee', notes: '' },{ userId: 8, fullName: '山本敬子', time: '12:00 - 21:00', role: 'employee', notes: 'イベント準備' }, ],
-                    '2025-06-16': [ { userId: 3, fullName: '鈴木三郎', time: '09:00 - 12:00', role: 'employee', notes: '' },{ userId: 7, fullName: '渡辺直子', time: '14:00 - 20:00', breakTime: '17:00 - 17:30', role: 'employee', notes: '' },{ userId: 9, fullName: '中村修平', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: ''}, ], 
-                    '2025-06-17': [ { userId: 4, fullName: '山田太郎', time: '17:00 - 21:00', breakTime: '18:00-18:30', role: 'employee', notes: '' },{ userId: 8, fullName: '山本敬子', time: '09:00 - 16:00', breakTime: '12:00 - 12:45', role: 'employee', notes: '' },{ userId: 10, fullName: '小林明美', time: '10:00 - 18:00', breakTime: '13:00-14:00', role: 'employee', notes: ''}, ],
-                    '2025-06-18': [ { userId: 1, fullName: '田中一郎', time: '09:00 - 17:00', role: 'manager', notes: '棚卸し指示'},{ userId: 11, fullName: '加藤大輔', time: '11:00 - 20:00', breakTime: '15:00-16:00', role: 'employee', notes: ''} ],
-                    '2025-06-19': [ { userId: 2, fullName: '佐藤花子', time: '09:00 - 18:00', breakTime: '13:00-14:00', role: 'employee', notes: ''},{ userId: 5, fullName: '高橋美咲', time: '12:00 - 21:00', breakTime: '16:00-17:00', role: 'employee', notes: ''} ],
-                    '2025-06-20': [ { userId: 1, fullName: '田中一郎', time: '終日', role: 'manager', notes: '出張'},{ userId: 9, fullName: '中村修平', time: '09:00 - 18:00', breakTime: '13:00-14:00', role: 'employee', notes: '店長不在対応'},{ userId: 10, fullName: '小林明美', time: '12:00 - 21:00', breakTime: '16:00-16:30, 19:00-19:15', role: 'employee', notes: ''},  ],
-                    '2025-06-21': [ { userId: 3, fullName: '鈴木三郎', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: ''},{ userId: 6, fullName: '伊藤健太', time: '12:00 - 21:00', breakTime: '16:00-17:00', role: 'employee', notes: ''} ],
-                    '2025-06-22': [ { userId: 4, fullName: '山田太郎', time: '09:00 - 18:00', breakTime: '13:00-14:00', role: 'employee', notes: '週末応援'},{ userId: 7, fullName: '渡辺直子', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: ''} ],
-                    '2025-06-23': [ { userId: 8, fullName: '山本敬子', time: '12:00 - 21:00', breakTime: '16:00-17:00', role: 'employee', notes: ''},{ userId: 11, fullName: '加藤大輔', time: '09:00 - 17:00', breakTime: '12:00-13:00', role: 'employee', notes: ''} ],
-                    '2025-06-24': [ { userId: 5, fullName: '高橋美咲', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: ''},{ userId: 9, fullName: '中村修平', time: '11:00 - 20:00', breakTime: '15:00-16:00', role: 'employee', notes: ''} ],
-                    '2025-06-25': [ { userId: 1, fullName: '田中一郎', time: '09:00 - 18:00', breakTime: '13:00-14:00', role: 'manager', notes: '月末処理'},{ userId: 2, fullName: '佐藤花子', time: '12:00 - 21:00', breakTime: '16:00-17:00', role: 'employee', notes: ''} ],
-                    '2025-06-26': [ { userId: 6, fullName: '伊藤健太', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: ''},{ userId: 10, fullName: '小林明美', time: '09:00 - 17:00', breakTime: '12:00-13:00', role: 'employee', notes: ''} ],
-                    '2025-06-27': [ { userId: 3, fullName: '鈴木三郎', time: '13:00 - 21:00', breakTime: '17:00-17:30', role: 'employee', notes: ''},{ userId: 7, fullName: '渡辺直子', time: '09:00 - 18:00', breakTime: '13:00-14:00', role: 'employee', notes: ''} ],
-                    '2025-06-28': [ { userId: 4, fullName: '山田太郎', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: '月末週末'},{ userId: 8, fullName: '山本敬子', time: '12:00 - 21:00', breakTime: '16:00-17:00', role: 'employee', notes: ''} ],
-                    '2025-06-29': [ { userId: 5, fullName: '高橋美咲', time: '09:00 - 18:00', breakTime: '13:00-14:00', role: 'employee', notes: ''},{ userId: 11, fullName: '加藤大輔', time: '10:00 - 19:00', breakTime: '14:00-15:00', role: 'employee', notes: ''} ],
-                    '2025-06-30': [ { userId: 1, fullName: '田中一郎', time: '09:00 - 17:00', role: 'manager', notes: '月末締め'},{ userId: 9, fullName: '中村修平', time: '12:00 - 21:00', breakTime: '16:00-17:00', role: 'employee', notes: ''} ]
-                },
-                manualBreaks: {},
-                manualShortages: {},
-            };
+            let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
             
             const mainViews = {
                 calendar: document.getElementById('calendarView'),
@@ -328,6 +295,70 @@
                 return date;
             }
             
+            async function fetchDataForMonth(date) {
+                const year = date.getFullYear();
+                const month = ('0' + (date.getMonth() + 1)).slice(-2);
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/data?month=${year}-${month}`);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+                    }
+                    const data = await response.json();
+                    
+                    appState.users = data.users || [];
+                    const monthKey = `${year}-${month}`;
+                    Object.keys(appState.shifts).forEach(key => { if (key.startsWith(monthKey)) delete appState.shifts[key]; });
+                    Object.keys(appState.manualBreaks).forEach(key => { if (key.startsWith(monthKey)) delete appState.manualBreaks[key]; });
+                    Object.keys(appState.manualShortages).forEach(key => { if (key.startsWith(monthKey)) delete appState.manualShortages[key]; });
+
+                    appState.shifts = { ...appState.shifts, ...data.shifts };
+                    appState.manualBreaks = { ...appState.manualBreaks, ...data.manualBreaks };
+                    appState.manualShortages = { ...appState.manualShortages, ...data.manualShortages };
+                    
+                    updateUserInfo();
+                    refreshCurrentView();
+                } catch (error) {
+                    console.error("データ取得エラー:", error);
+                    alert("APIサーバーへの接続に失敗しました。");
+                }
+            }
+
+            async function updateShift(shiftData) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/shift`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(shiftData)
+                    });
+                    if (!response.ok) throw new Error('シフト更新APIエラー');
+                    return true;
+                } catch (error) {
+                    console.error("シフト更新エラー:", error);
+                    alert("シフトの更新に失敗しました。");
+                    return false;
+                }
+            }
+            
+            async function updateManualData(date, breaks, shortages) {
+                try {
+                    const payload = { date };
+                    if (breaks !== undefined) payload.breaks = breaks;
+                    if (shortages !== undefined) payload.shortages = shortages;
+                    const response = await fetch(`${API_BASE_URL}/api/manuals`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!response.ok) throw new Error('手動データ更新APIエラー');
+                    return true;
+                } catch (error) {
+                    console.error("手動データ更新エラー:", error);
+                    alert("情報の更新に失敗しました。");
+                    return false;
+                }
+            }
+            
             function updateUserInfo() {
                  currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`;
             }
@@ -345,14 +376,19 @@
                 });
             }
 
-            function switchView(viewKey) {
+            async function switchView(viewKey) {
                 Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
                 setActiveNavButton(viewKey);
                 
-                if (viewKey === 'dailyChart') {
+                let targetDate;
+                if (viewKey === 'calendar') targetDate = calendarDisplayDate;
+                else if (viewKey === 'dailyChart') {
+                    targetDate = chartDisplayDate;
                     currentChartDateInput.value = formatDate(chartDisplayDate); 
                 }
-                refreshCurrentView();
+                else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
+                
+                await fetchDataForMonth(targetDate);
             }
             
             function refreshCurrentView() {
@@ -650,15 +686,18 @@
             navButtons.dailyChart.addEventListener('click', () => switchView('dailyChart'));
             navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
 
-            document.getElementById('prevMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); renderCalendar(); });
-            document.getElementById('nextMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); renderCalendar(); });
-            document.getElementById('employeeHighlightSelect').addEventListener('change', (e) => { selectedEmployeeForHighlight = e.target.value ? parseInt(e.target.value) : null; renderCalendar();});
-            document.getElementById('prevDayChartBtn').addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); document.getElementById('currentChartDate').value = formatDate(chartDisplayDate); renderDailyShiftChart(); });
-            document.getElementById('nextDayChartBtn').addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); document.getElementById('currentChartDate').value = formatDate(chartDisplayDate); renderDailyShiftChart(); });
-            document.getElementById('currentChartDate').addEventListener('change', (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); renderDailyShiftChart(); });
-            document.getElementById('prevMonthBulkBtn').addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); renderBulkShiftTable(); });
-            document.getElementById('nextMonthBulkBtn').addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); renderBulkShiftTable(); });
-            document.getElementById('toggleBulkShiftPeriodBtn').addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
+            prevMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); renderCalendar(); });
+            nextMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); renderCalendar(); });
+            employeeHighlightSelect.addEventListener('change', (e) => {
+                selectedEmployeeForHighlight = e.target.value ? parseInt(e.target.value) : null;
+                renderCalendar();
+            });
+            prevDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); currentChartDateInput.value = formatDate(chartDisplayDate); renderDailyShiftChart(); });
+            nextDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); currentChartDateInput.value = formatDate(chartDisplayDate); renderDailyShiftChart(); });
+            currentChartDateInput.addEventListener('change', (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); renderDailyShiftChart(); });
+            prevMonthBulkBtn.addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); renderBulkShiftTable(); });
+            nextMonthBulkBtn.addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); renderBulkShiftTable(); });
+            toggleBulkShiftPeriodBtn.addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
             shiftDetailModal.addEventListener('click', (event) => { if (event.target === shiftDetailModal) shiftDetailModal.style.display = 'none'; });
             
             switchView('calendar');
