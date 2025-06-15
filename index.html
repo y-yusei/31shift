@@ -197,25 +197,31 @@
         const loginError = document.getElementById('loginError');
         
         // --- ログイン処理 ---
-        function handleLogin() {
-            const id = loginIdInput.value.toLowerCase();
+        async function handleLogin() {
+            const id = loginIdInput.value;
             const password = loginPasswordInput.value;
-            const userCredential = credentials[id];
+            loginError.textContent = '';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: id, password: password })
+                });
 
-            if (userCredential && userCredential.password === password) {
-                loginError.textContent = '';
-                loginScreen.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                
-                if (userCredential.role === 'manager') {
-                    currentUser = staticUsersForLogin.find(u => u.role === 'manager');
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    currentUser = data.user; // APIから返されたユーザー情報をセット
+                    loginScreen.classList.add('hidden');
+                    appContainer.classList.remove('hidden');
+                    initializeApp();
                 } else {
-                    currentUser = { id: 0, name: '従業員', role: 'employee_viewer' };
+                    loginError.textContent = 'IDまたはパスワードが正しくありません。';
                 }
-                
-                initializeApp();
-            } else {
-                loginError.textContent = 'IDまたはパスワードが正しくありません。';
+            } catch (error) {
+                console.error("ログインエラー:", error);
+                loginError.textContent = 'ログイン処理中にエラーが発生しました。';
             }
         }
 
