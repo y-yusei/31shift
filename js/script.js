@@ -1,6 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // --- ★★★ 修正点 ★★★ ---
-    // エラーログに示されていた、正しいあなたのWorkerのURLに修正しました。
     const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
     
     // --- グローバル変数 ---
