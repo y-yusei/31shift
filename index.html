@@ -197,7 +197,8 @@
             loginError.textContent = '';
             
             try {
-                const response = await fetch(`${API_BASE_URL}/api/login`, {
+                // APIサーバーにログイン情報を送信して認証
+                const response = await fetch(`${initializeApp.API_BASE_URL}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: id, password: password })
@@ -206,12 +207,13 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    currentUser = data.user;
+                    // APIから返されたユーザー情報を現在のユーザーとして設定
+                    currentUser = data.user; 
                     loginScreen.classList.add('hidden');
                     appContainer.classList.remove('hidden');
                     initializeApp();
                 } else {
-                    loginError.textContent = 'IDまたはパスワードが正しくありません。';
+                    loginError.textContent = data.message || 'IDまたはパスワードが正しくありません。';
                 }
             } catch (error) {
                 console.error("ログインエラー:", error);
