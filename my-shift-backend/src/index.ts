@@ -33,7 +33,6 @@ export default {
 		try {
 			// --- APIルーティング ---
 			if (url.pathname === '/api/data') {
-				// ... (GET /api/data の処理) ...
 				const month = url.searchParams.get('month');
 				if (!month) return withCors(new Response('Month query parameter is required', { status: 400 }));
 
@@ -54,7 +53,6 @@ export default {
 				return withCors(new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
 
 			} else if (url.pathname === '/api/shift' && request.method === 'POST') {
-				// ... (POST /api/shift の処理) ...
 				const { userId, date, time, breakTime, notes } = await request.json<any>();
 				if (!userId || !date) return withCors(new Response('userId and date are required', { status: 400 }));
 
@@ -65,7 +63,6 @@ export default {
 				return withCors(new Response('Shift updated successfully', { status: 200 }));
 
 			} else if (url.pathname === '/api/manuals' && request.method === 'POST') {
-				// ... (POST /api/manuals の処理) ...
 				const { date, breaks, shortages } = await request.json<any>();
 				if (!date) return withCors(new Response('Date is required', { status: 400 }));
 				
@@ -78,7 +75,7 @@ export default {
             } else if (url.pathname === '/api/login' && request.method === 'POST') {
                 const { username, password } = await request.json<any>();
                 if (!username || !password) {
-                    return withCors(new Response('Username and password are required', { status: 400 }));
+                    return withCors(new Response(JSON.stringify({ success: false, message: 'Username and password are required' }), { status: 400, headers: { 'Content-Type': 'application/json' }}));
                 }
         
                 const stmt = env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(username);
@@ -86,7 +83,6 @@ export default {
                 
                 const user: any = results[0];
         
-                // 注: 本来はハッシュ化されたパスワードを安全に比較します
                 if (user && user.password === password) {
                     // パスワード情報はフロントエンドに返さない
                     const { password, ...userToSend } = user;
@@ -95,17 +91,12 @@ export default {
                     return withCors(new Response(JSON.stringify({ success: false, message: 'Invalid credentials' }), { status: 401, headers: { 'Content-Type': 'application/json' }}));
                 }
             // ★★★ ここまでが追加箇所です ★★★
-
-			} else if (url.pathname === '/') {
-                return withCors(new Response('Shift Management API is running!'));
-            }
-
+			}
 
 			// どのパスにも一致しない場合
 			return withCors(new Response('Not Found', { status: 404 }));
 
 		} catch (e: any) {
-			// プログラム全体で予期せぬエラーが発生した場合
 			console.error("Unhandled Error:", e);
 			return withCors(new Response(`Internal Server Error: ${e.message}`, { status: 500 }));
 		}
