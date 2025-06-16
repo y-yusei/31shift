@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
+    const API_BASE_URL = 'https://my-shift-backend.y-yusei.workers.dev'; 
     
-    // --- グローバル変数 ---
     let dailyShiftChartInstance = null;
     let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
     let currentUser = null; 
@@ -23,30 +22,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const roleSwitcher = document.getElementById('roleSwitcher');
     const currentUserInfo = document.getElementById('currentUserInfo');
     document.getElementById('currentYear').textContent = new Date().getFullYear();
-
-    // カレンダービュー用
     const calendarGrid = document.getElementById('calendarGrid');
     const calendarMonthYear = document.getElementById('calendarMonthYear');
     const employeeHighlightSelect = document.getElementById('employeeHighlightSelect');
     const prevMonthBtn = document.getElementById('prevMonthBtn');
     const nextMonthBtn = document.getElementById('nextMonthBtn');
-
-    // 日別グラフビュー用
     const dailyShiftChartCanvas = document.getElementById('dailyShiftChart');
     const currentChartDateInput = document.getElementById('currentChartDate');
     const prevDayChartBtn = document.getElementById('prevDayChartBtn');
     const nextDayChartBtn = document.getElementById('nextDayChartBtn');
-
-    // 一括シフトビュー用
     const bulkShiftMonthYearDisplay = document.getElementById('bulkShiftMonthYear');
     const prevMonthBulkBtn = document.getElementById('prevMonthBulkBtn');
     const nextMonthBulkBtn = document.getElementById('nextMonthBulkBtn');
     const toggleBulkShiftPeriodBtn = document.getElementById('toggleBulkShiftPeriodBtn');
     const bulkShiftTable = document.getElementById('bulkShiftTable');
+    const saveBulkShiftBtn = document.getElementById('saveBulkShiftBtn');
 
-    // --- 表示管理用変数 ---
     let calendarDisplayDate = new Date(2025, 5, 1);
-    let chartDisplayDate = new Date(2025, 5, 1);
+    let chartDisplayDate = new Date();
     let bulkViewDisplayMonth = new Date(2025, 5, 1);
     let bulkViewIsFirstHalf = true;
     let selectedEmployeeForHighlight = null;
@@ -54,38 +47,28 @@ document.addEventListener('DOMContentLoaded', function() {
     
     const dummyEvents = { 
         '2025-06-01': { text: '特売日', icon: 'fas fa-tags' },
-        '2025-06-04': { text: '店長会議', icon: 'fas fa-users' },
         '2025-06-15': { text: '棚卸し', icon: 'fas fa-boxes-stacked' },
-        '2025-06-20': { text: '新商品発売', icon: 'fas fa-gift' },
     };
     
-    const dummyDataForOfflinePreview = {
-        users: [
-            { id: 1, name: '田中一郎', role: 'manager' }, { id: 2, name: '佐藤花子', role: 'employee' },
-            { id: 3, name: '鈴木三郎', role: 'employee' }, { id: 4, name: '山田太郎', role: 'employee' },
-            { id: 5, name: '高橋美咲', role: 'employee' }, { id: 6, name: '伊藤健太', role: 'employee' },
-            { id: 7, name: '渡辺直子', role: 'employee' }, { id: 8, name: '山本敬子', role: 'employee' },
-            { id: 9, name: '中村修平', role: 'employee' }, { id: 10, name: '小林明美', role: 'employee' },
-            { id: 11, name: '加藤大輔', role: 'employee' },
-        ],
-        shifts: {
-            '2025-06-01': [ { userId: 1, fullName: '田中一郎', time: '09:00 - 18:00', breakTime: '13:00 - 14:00', role: 'manager', notes: '週末対応' } ],
-            '2025-06-02': [ { userId: 3, fullName: '鈴木三郎', time: '09:00 - 17:00', breakTime: '12:00 - 13:00', role: 'employee', notes: '早番' } ],
-        },
-        manualBreaks: {},
-        manualShortages: {},
-    };
-
-    // --- データ通信 ---
+    function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
+    function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
+    function formatDateToJapanese(date) { return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 (${['日', '月', '火', '水', '木', '金', '土'][date.getDay()]})`; }
+    function formatDateToJapaneseShort(date) { return `${date.getMonth() + 1}/${date.getDate()}(${['日', '月', '火', '水', '木', '金', '土'][date.getDay()]})`;}
+    function isToday(date) { const today = new Date(); return date.toDateString() === today.toDateString(); }
+    function parseTimeToDate(timeStr, baseDate) {
+        if (!timeStr || !timeStr.includes(':')) return null;
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const date = new Date(baseDate);
+        date.setHours(hours, minutes, 0, 0);
+        return date;
+    }
+    
     async function fetchDataForMonth(date) {
         const year = date.getFullYear();
         const month = ('0' + (date.getMonth() + 1)).slice(-2);
         try {
             const response = await fetch(`${API_BASE_URL}/api/data?month=${year}-${month}`);
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
-            }
+            if (!response.ok) throw new Error('API Error');
             const data = await response.json();
             
             appState.users = data.users || [];
@@ -104,72 +87,99 @@ document.addEventListener('DOMContentLoaded', function() {
             refreshCurrentView();
         } catch (error) {
             console.error("データ取得エラー:", error);
-            alert("APIサーバーへの接続に失敗しました。ローカルのサンプルデータを表示します。");
-            appState = { ...appState, ...dummyDataForOfflinePreview };
-            if (!currentUser && appState.users.length > 0) {
-                initializeUser();
-            }
-            refreshCurrentView();
+            alert("APIサーバーへの接続に失敗しました。");
         }
     }
 
     async function updateShift(shiftData) {
-        try {
-            const response = await fetch(`${API_BASE_URL}/api/shift`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(shiftData)
-            });
-            if (!response.ok) throw new Error('シフト更新APIエラー');
-            return true;
-        } catch (error) {
-            console.error("シフト更新エラー:", error);
-            alert("シフトの更新に失敗しました。");
-            return false;
-        }
+        // (この関数は個別更新用なので、今回は使いません)
     }
     
-    async function updateManualData(date, breaks, shortages) {
-        try {
-            const payload = { date };
-            if (breaks !== undefined) payload.breaks = breaks;
-            if (shortages !== undefined) payload.shortages = shortages;
+    async function handleBulkUpdate() {
+        const shiftInputs = bulkShiftTable.querySelectorAll('tbody input[type="text"]');
+        const breakInputs = bulkShiftTable.querySelectorAll('tfoot #bulkShiftTableBreakTimesRow input[type="text"]');
+        const shortageInputs = bulkShiftTable.querySelectorAll('tfoot #bulkShiftTableShortageHoursRow input[type="text"]');
 
-            const response = await fetch(`${API_BASE_URL}/api/manuals`, {
+        const shiftsToUpdate = [];
+        shiftInputs.forEach(input => {
+            shiftsToUpdate.push({
+                userId: parseInt(input.dataset.userId),
+                date: input.dataset.date,
+                time: input.value.trim()
+            });
+        });
+
+        const breaksToUpdate = {};
+        breakInputs.forEach(input => {
+            breaksToUpdate[input.dataset.date] = input.value.trim();
+        });
+
+        const shortagesToUpdate = {};
+        shortageInputs.forEach(input => {
+            shortagesToUpdate[input.dataset.date] = input.value.trim();
+        });
+
+        const payload = {
+            shifts: shiftsToUpdate,
+            manualBreaks: breaksToUpdate,
+            manualShortages: shortagesToUpdate
+        };
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/bulk-update`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-            if (!response.ok) throw new Error('手動データ更新APIエラー');
-            return true;
+
+            if (!response.ok) {
+                throw new Error('一括更新APIエラー');
+            }
+            alert('シフトを保存しました。');
+            await fetchDataForMonth(bulkViewDisplayMonth);
         } catch (error) {
-            console.error("手動データ更新エラー:", error);
-            alert("情報の更新に失敗しました。");
-            return false;
+            console.error("一括更新エラー:", error);
+            alert("シフトの保存に失敗しました。");
         }
     }
     
-    // --- ユーティリティ関数 ---
-    function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
-    function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
-    function formatDateToJapanese(date) { return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 (${['日', '月', '火', '水', '木', '金', '土'][date.getDay()]})`; }
-    function formatDateToJapaneseShort(date) { return `${date.getMonth() + 1}/${date.getDate()}(${['日', '月', '火', '水', '木', '金', '土'][date.getDay()]})`;}
-    function isToday(date) { const today = new Date(); return date.toDateString() === today.toDateString(); }
-    
-    function parseTimeToDate(timeStr, baseDate) {
-        if (!timeStr || !timeStr.includes(':')) return null;
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        const date = new Date(baseDate);
-        date.setHours(hours, minutes, 0, 0);
-        return date;
+    function setupRoleSwitcher() {
+        roleSwitcher.innerHTML = ''; 
+        const managerUser = appState.users.find(u => u.role === 'manager');
+        if (managerUser) {
+             const optionManager = document.createElement('option');
+             optionManager.value = managerUser.id;
+             optionManager.textContent = `${managerUser.name} (店長)`;
+             roleSwitcher.appendChild(optionManager);
+        }
+        const optionEmployeeView = document.createElement('option');
+        optionEmployeeView.value = EMPLOYEE_VIEW_ID; 
+        optionEmployeeView.textContent = "従業員ビュー";
+        roleSwitcher.appendChild(optionEmployeeView);
+        roleSwitcher.value = currentUser.id;
     }
 
-    // --- UI制御 ---
+    function updateUserInfo() {
+         currentUserInfo.innerHTML = `表示モード: <span class="font-bold">${currentUser.name}</span>`;
+    }
+    
+    function initializeUser() {
+        const manager = appState.users.find(u => u.role === 'manager');
+        currentUser = manager || { id: EMPLOYEE_VIEW_ID, name: '従業員ビュー', role: 'employee_viewer' };
+        setupRoleSwitcher();
+        updateUserInfo();
+    }
+
     function setActiveNavButton(activeViewKey) {
         Object.keys(navButtons).forEach(key => {
-            const button = navButtons[key];
-            button.classList.remove('active');
-            if (key === activeViewKey) button.classList.add('active');
+            button = navButtons[key];
+            button.classList.remove('bg-blue-700', 'bg-purple-700', 'bg-teal-700', 'active');
+            let baseColor = key === 'calendar' ? 'bg-blue-600' : key === 'dailyChart' ? 'bg-purple-600' : 'bg-teal-600';
+            button.classList.add(baseColor);
+            if (key === activeViewKey) {
+                button.classList.remove(baseColor);
+                button.classList.add(key === 'calendar' ? 'bg-blue-700' : key === 'dailyChart' ? 'bg-purple-700' : 'bg-teal-700', 'active');
+            }
         });
     }
 
@@ -179,7 +189,11 @@ document.addEventListener('DOMContentLoaded', function() {
         
         let targetDate;
         if (viewKey === 'calendar') targetDate = calendarDisplayDate;
-        else if (viewKey === 'dailyChart') targetDate = chartDisplayDate;
+        else if (viewKey === 'dailyChart') {
+            chartDisplayDate = new Date();
+            targetDate = chartDisplayDate;
+            currentChartDateInput.value = formatDate(chartDisplayDate); 
+        }
         else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
         
         await fetchDataForMonth(targetDate);
