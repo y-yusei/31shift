@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <link rel="stylesheet" href="./css/style.css">
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -59,19 +58,37 @@
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800">
+
+    <div id="loginScreen" class="flex items-center justify-center h-screen">
+        <div class="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
+            <h1 class="text-3xl font-bold text-slate-700 text-center mb-6">シフト管理システム ログイン</h1>
+            <div id="loginError" class="text-red-500 text-sm text-center mb-4 h-5"></div>
+            <div class="space-y-4">
+                <div>
+                    <label for="loginId" class="block text-sm font-medium text-slate-600">ユーザーID</label>
+                    <input type="text" id="loginId" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" value="manager">
+                </div>
+                <div>
+                    <label for="loginPassword" class="block text-sm font-medium text-slate-600">パスワード</label>
+                    <input type="password" id="loginPassword" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" value="pass123">
+                </div>
+                <button id="loginBtn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    ログイン
+                </button>
+            </div>
+        </div>
+    </div>
     
-    <div id="appContainer">
+    <div id="appContainer" class="hidden">
         <div class="container mx-auto p-4 md:p-6 lg:p-8">
             <header class="bg-white shadow-md rounded-lg p-6 mb-8">
                 <div class="flex flex-wrap justify-between items-center gap-4">
                     <h1 class="text-3xl font-bold text-slate-700">シフト管理システム</h1>
                     <div class="flex items-center gap-4">
                         <div class="text-right">
-                           <span id="currentUserInfo" class="text-sm text-slate-500 block"></span>
+                            <span id="currentUserInfo" class="text-sm text-slate-500 block"></span>
                         </div>
-                        <select id="roleSwitcher" class="p-2 border border-slate-300 rounded-md shadow-sm text-sm">
-                           <!-- Options will be added by JS -->
-                        </select>
+                        <button id="logoutBtn" class="bg-red-500 hover:bg-red-700 text-white text-xs font-bold py-1 px-3 rounded-full">ログアウト</button>
                     </div>
                 </div>
                 <nav class="mt-4 border-t pt-4 flex flex-wrap gap-2">
@@ -120,9 +137,9 @@
                 </div>
                 
                 <div id="bulkShiftView" class="main-view bg-white shadow-md rounded-lg p-6 hidden">
-                     <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
-                         <h2 class="text-2xl font-semibold text-slate-700">一括シフト表示・作成</h2>
-                        <div class="flex items-center gap-4">
+                    <h2 class="text-2xl font-semibold mb-4 text-slate-700">一括シフト表示・作成</h2>
+                    <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
+                        <div class="flex items-center">
                             <button id="prevMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-l-lg transition"><i class="fas fa-angle-double-left"></i> 前月</button>
                             <span id="bulkShiftMonthYear" class="font-semibold text-lg mx-4 text-slate-700"></span>
                             <button id="nextMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-r-lg transition">次月 <i class="fas fa-angle-double-right"></i></button>
@@ -130,10 +147,6 @@
                         <div class="flex items-center gap-2">
                             <span class="text-sm text-slate-600">表示範囲:</span>
                             <button id="toggleBulkShiftPeriodBtn" class="bg-sky-500 hover:bg-sky-600 text-white text-sm py-2 px-3 rounded-lg transition">前半 (1-15日)</button>
-                             <!-- ★★★ 確定ボタンを追加 ★★★ -->
-                            <button id="saveBulkShiftBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition">
-                                <i class="fas fa-check mr-2"></i>この内容で保存する
-                            </button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -163,15 +176,9 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- ログイン情報 (本来はサーバーサイドで管理) ---
-        const credentials = {
-            manager: { password: 'pass123', role: 'manager' },
-            user: { password: 'pass123', role: 'employee' }
-        };
-        const staticUsersForLogin = [
-            { id: 1, name: '田中一郎', role: 'manager' },
-        ];
-        
+        // --- ★★★ このファイルをデプロイする前に、必ず正しいURLに書き換えてください ★★★ ---
+        const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
+
         let currentUser = null; 
 
         // --- DOM要素 ---
@@ -184,25 +191,33 @@
         const loginError = document.getElementById('loginError');
         
         // --- ログイン処理 ---
-        function handleLogin() {
+        async function handleLogin() {
             const id = loginIdInput.value.toLowerCase();
             const password = loginPasswordInput.value;
-            const userCredential = credentials[id];
+            loginError.textContent = '';
+            
+            try {
+                // APIサーバーにログイン情報を送信して認証
+                const response = await fetch(`${initializeApp.API_BASE_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: id, password: password })
+                });
 
-            if (userCredential && userCredential.password === password) {
-                loginError.textContent = '';
-                loginScreen.classList.add('hidden');
-                appContainer.classList.remove('hidden');
-                
-                if (userCredential.role === 'manager') {
-                    currentUser = staticUsersForLogin.find(u => u.role === 'manager');
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // APIから返されたユーザー情報を現在のユーザーとして設定
+                    currentUser = data.user; 
+                    loginScreen.classList.add('hidden');
+                    appContainer.classList.remove('hidden');
+                    initializeApp();
                 } else {
-                    currentUser = { id: 0, name: '従業員', role: 'employee_viewer' };
+                    loginError.textContent = data.message || 'IDまたはパスワードが正しくありません。';
                 }
-                
-                initializeApp();
-            } else {
-                loginError.textContent = 'IDまたはパスワードが正しくありません。';
+            } catch (error) {
+                console.error("ログインエラー:", error);
+                loginError.textContent = 'ログイン処理中にエラーが発生しました。サーバーが起動しているか確認してください。';
             }
         }
 
@@ -217,10 +232,8 @@
         logoutBtn.addEventListener('click', handleLogout);
         loginPasswordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
 
-        // --- ★★★ ログイン後のアプリケーション初期化関数 ★★★ ---
+        // --- アプリケーション本体の初期化とロジック ---
         function initializeApp() {
-            const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
-            
             let dailyShiftChartInstance = null;
             let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
             
@@ -577,39 +590,36 @@
                 document.getElementById('toggleBulkShiftPeriodBtn').textContent = bulkViewIsFirstHalf ? '前半 (1-15日)' : `後半 (16-${lastDayOfMonth}日)`;
             }
             
-            function handleManualShortageInputChange(event) {
-                appState.manualShortages[event.target.dataset.date] = event.target.value.trim();
-            }
-            function handleManualBreakInputChange(event) {
-                appState.manualBreaks[event.target.dataset.date] = event.target.value.trim();
-            }
-            function handleBulkShiftInputChange(event) {
-                const userId = parseInt(event.target.dataset.userId);
-                const date = event.target.dataset.date;
-                const time = event.target.value.trim();
-                
-                if (!appState.shifts[date]) appState.shifts[date] = [];
-                let shiftIndex = appState.shifts[date].findIndex(s => s.userId == userId);
-
-                if (time) {
-                    const user = appState.users.find(u => u.id == userId);
-                    const newShiftData = { 
-                        userId, fullName: user.name, role: user.role, time,
-                        breakTime: (shiftIndex > -1 ? appState.shifts[date][shiftIndex].breakTime : undefined),
-                        notes: (shiftIndex > -1 ? appState.shifts[date][shiftIndex].notes : '')
-                    };
-                    if (shiftIndex > -1) {
-                        appState.shifts[date][shiftIndex] = newShiftData;
-                    } else {
-                        appState.shifts[date].push(newShiftData);
-                    }
-                } else {
-                    if (shiftIndex > -1) appState.shifts[date].splice(shiftIndex, 1);
+            async function handleManualShortageInputChange(event) {
+                const input = event.target;
+                const date = input.dataset.date;
+                const shortages = input.value.trim();
+                if(await updateManualData(date, undefined, shortages)) {
+                    appState.manualShortages[date] = shortages;
                 }
-                renderBulkShiftTable();
+            }
+            async function handleManualBreakInputChange(event) {
+                const input = event.target;
+                const date = input.dataset.date;
+                const breaks = input.value.trim();
+                if(await updateManualData(date, breaks, undefined)) {
+                    appState.manualBreaks[date] = breaks;
+                }
+            }
+            async function handleBulkShiftInputChange(event) {
+                const input = event.target;
+                const userId = parseInt(input.dataset.userId);
+                const date = input.dataset.date;
+                const time = input.value.trim();
+                const existingShift = (appState.shifts[date] || []).find(s => s.userId === userId);
+                const shiftData = { userId, date, time, breakTime: existingShift?.breakTime, notes: existingShift?.notes };
+                
+                if (await updateShift(shiftData)) {
+                    await fetchDataForMonth(new Date(date));
+                }
             }
             
-            function showShiftDetailModal(date) {
+            async function showShiftDetailModal(date) {
                 modalContent.innerHTML = ''; 
                 const dateString = formatDate(date);
                 const shiftsForDay = appState.shifts[dateString] || [];
@@ -631,20 +641,22 @@
                 
                 if (currentUser.role === 'manager') {
                     modalContent.querySelectorAll('.delete-shift-btn').forEach(button => {
-                        button.addEventListener('click', (e) => {
+                        button.addEventListener('click', async (e) => {
                             const shiftIndex = parseInt(e.currentTarget.dataset.shiftIndex);
                             const targetDateString = e.currentTarget.dataset.dateString;
-                            if (appState.shifts[targetDateString]?.[shiftIndex]) {
-                                appState.shifts[targetDateString].splice(shiftIndex, 1);
-                                refreshCurrentView();
-                                showShiftDetailModal(date);
+                            const shiftToDelete = (appState.shifts[targetDateString] || [])[shiftIndex];
+                            if (shiftToDelete) {
+                                 if(await updateShift({ userId: shiftToDelete.userId, date: targetDateString, time: '' })) {
+                                    await fetchDataForMonth(date);
+                                    showShiftDetailModal(date);
+                                 }
                             }
                         });
                     });
 
                     const addShiftBtn = modalContent.querySelector('#addShiftBtn');
                     if(addShiftBtn) {
-                        addShiftBtn.addEventListener('click', (e) => {
+                        addShiftBtn.addEventListener('click', async (e) => {
                             const employeeId = parseInt(modalContent.querySelector('#newShiftEmployee').value);
                             const startTime = modalContent.querySelector('#newShiftStartTime').value;
                             const endTime = modalContent.querySelector('#newShiftEndTime').value;
@@ -655,38 +667,36 @@
                             if (!employeeId || !startTime || !endTime) { alert("従業員、勤務開始・終了時刻は必須です。"); return; }
                             if ((breakStartTime && !breakEndTime) || (!breakStartTime && breakEndTime)) { alert("休憩は開始・終了の両方を入力してください。"); return; }
                             
-                            const user = appState.users.find(u=>u.id == employeeId);
-                            const newShift = { userId: employeeId, fullName: user.name, time: `${startTime} - ${endTime}`, role: user.role, notes };
-                            if (breakStartTime && breakEndTime) newShift.breakTime = `${breakStartTime} - ${breakEndTime}`;
-                            if (!appState.shifts[dateString]) appState.shifts[dateString] = [];
-                            appState.shifts[dateString].push(newShift);
-                            refreshCurrentView();
-                            showShiftDetailModal(date);
+                            const shiftData = { date: dateString, userId: employeeId, time: `${startTime} - ${endTime}`, notes: notes };
+                            if (breakStartTime && breakEndTime) shiftData.breakTime = `${breakStartTime} - ${breakEndTime}`;
+
+                            if(await updateShift(shiftData)){
+                                await fetchDataForMonth(date);
+                                showShiftDetailModal(date);
+                            }
                         });
                     }
                 }
                 shiftDetailModal.style.display = 'block';
             }
-            
-            updateUserInfo();
-            navButtons.calendar.addEventListener('click', () => switchView('calendar'));
-            navButtons.dailyChart.addEventListener('click', () => switchView('dailyChart'));
-            navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
 
-            prevMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); renderCalendar(); });
-            nextMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); renderCalendar(); });
-            employeeHighlightSelect.addEventListener('change', (e) => {
-                selectedEmployeeForHighlight = e.target.value ? parseInt(e.target.value) : null;
-                renderCalendar();
+            // --- イベントリスナー設定 ---
+            Object.keys(navButtons).forEach(key => {
+                navButtons[key].addEventListener('click', () => switchView(key));
             });
-            prevDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); currentChartDateInput.value = formatDate(chartDisplayDate); renderDailyShiftChart(); });
-            nextDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); currentChartDateInput.value = formatDate(chartDisplayDate); renderDailyShiftChart(); });
-            currentChartDateInput.addEventListener('change', (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); renderDailyShiftChart(); });
-            prevMonthBulkBtn.addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); renderBulkShiftTable(); });
-            nextMonthBulkBtn.addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); renderBulkShiftTable(); });
+            prevMonthBtn.addEventListener('click', async () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); await fetchDataForMonth(calendarDisplayDate); });
+            nextMonthBtn.addEventListener('click', async () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); await fetchDataForMonth(calendarDisplayDate); });
+            employeeHighlightSelect.addEventListener('change', (e) => { selectedEmployeeForHighlight = e.target.value ? parseInt(e.target.value) : null; renderCalendar();});
+            prevDayChartBtn.addEventListener('click', async () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); currentChartDateInput.value = formatDate(chartDisplayDate); await fetchDataForMonth(chartDisplayDate); });
+            nextDayChartBtn.addEventListener('click', async () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); currentChartDateInput.value = formatDate(chartDisplayDate); await fetchDataForMonth(chartDisplayDate); });
+            currentChartDateInput.addEventListener('change', async (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); await fetchDataForMonth(chartDisplayDate); });
+            prevMonthBulkBtn.addEventListener('click', async () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); await fetchDataForMonth(bulkViewDisplayMonth); });
+            nextMonthBulkBtn.addEventListener('click', async () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); await fetchDataForMonth(bulkViewDisplayMonth); });
             toggleBulkShiftPeriodBtn.addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
             shiftDetailModal.addEventListener('click', (event) => { if (event.target === shiftDetailModal) shiftDetailModal.style.display = 'none'; });
             
+            // --- 初期化処理 ---
+            updateUserInfo();
             switchView('calendar');
         }
     });
