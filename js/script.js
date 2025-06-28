@@ -1,10 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
-    
+    const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev';
+
     // --- グローバル変数 ---
     let dailyShiftChartInstance = null;
     let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
-    let currentUser = null; 
+    let currentUser = null;
 
     // --- DOM要素 ---
     const mainViews = {
@@ -12,9 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
         dailyChart: document.getElementById('dailyChartView'),
         bulkShift: document.getElementById('bulkShiftView'),
     };
-    const navButtons = { 
-        calendar: document.getElementById('showCalendarViewBtn'), 
-        dailyChart: document.getElementById('showDailyChartViewBtn'), 
+    const navButtons = {
+        calendar: document.getElementById('showCalendarViewBtn'),
+        dailyChart: document.getElementById('showDailyChartViewBtn'),
         bulkShift: document.getElementById('showBulkShiftViewBtn')
     };
     
@@ -44,15 +44,18 @@ document.addEventListener('DOMContentLoaded', function() {
     const toggleBulkShiftPeriodBtn = document.getElementById('toggleBulkShiftPeriodBtn');
     const bulkShiftTable = document.getElementById('bulkShiftTable');
 
-    // --- 表示管理用変数 ---
-    let calendarDisplayDate = new Date(2025, 5, 1);
-    let chartDisplayDate = new Date(2025, 5, 1);
-    let bulkViewDisplayMonth = new Date(2025, 5, 1);
+    // --- 表示管理用変数 (修正箇所) ---
+    const today = new Date(); // 今日の日付を取得
+    const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1); // 今月の1日を取得
+
+    let calendarDisplayDate = new Date(firstDayOfCurrentMonth);
+    let chartDisplayDate = new Date(today); 
+    let bulkViewDisplayMonth = new Date(firstDayOfCurrentMonth);
     let bulkViewIsFirstHalf = true;
     let selectedEmployeeForHighlight = null;
     const EMPLOYEE_VIEW_ID = 0;
-    
-    const dummyEvents = { 
+
+    const dummyEvents = {
         '2025-06-01': { text: '特売日', icon: 'fas fa-tags' },
         '2025-06-04': { text: '店長会議', icon: 'fas fa-users' },
         '2025-06-15': { text: '棚卸し', icon: 'fas fa-boxes-stacked' },
@@ -98,7 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
             appState.manualBreaks = { ...appState.manualBreaks, ...data.manualBreaks };
             appState.manualShortages = { ...appState.manualShortages, ...data.manualShortages };
             
-            if (!currentUser && appState.users.length > 0) { 
+            if (!currentUser && appState.users.length > 0) {
                 initializeUser();
             }
             refreshCurrentView();
@@ -193,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- UI描画関数 ---
     function renderCalendar() {
-        if (!calendarGrid || !calendarMonthYear || !employeeHighlightSelect) return; 
+        if (!calendarGrid || !calendarMonthYear || !employeeHighlightSelect) return;
 
         calendarGrid.innerHTML = '';
         const year = calendarDisplayDate.getFullYear();
@@ -240,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const shiftsForDay = appState.shifts[dateString] || [];
         
         const chartDatasetData = [];
-        const yLabels = []; 
+        const yLabels = [];
 
         shiftsForDay.forEach(shift => {
             if (!yLabels.includes(shift.fullName)) yLabels.push(shift.fullName);
@@ -255,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (breakStartDate && breakEndDate && breakStartDate < mainEndDate && breakEndDate > mainStartDate && breakStartDate < breakEndDate) {
                     if (mainStartDate < breakStartDate) chartDatasetData.push({ x: [mainStartDate.getTime(), breakStartDate.getTime()], y: shift.fullName, originalShift: shift, bgColor: bgColor });
                     if (breakEndDate < mainEndDate) chartDatasetData.push({ x: [breakEndDate.getTime(), mainEndDate.getTime()], y: shift.fullName, originalShift: shift, bgColor: bgColor });
-                } else { 
+                } else {
                     chartDatasetData.push({ x: [mainStartDate.getTime(), mainEndDate.getTime()], y: shift.fullName, originalShift: shift, bgColor: bgColor });
                 }
             } else {
@@ -267,8 +270,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (dailyShiftChartInstance) dailyShiftChartInstance.destroy();
 
         const todayForChart = new Date(chartDisplayDate);
-        const chartMinTime = new Date(todayForChart); chartMinTime.setHours(9,0,0,0); 
-        const chartMaxTime = new Date(todayForChart); chartMaxTime.setHours(21,0,0,0); 
+        const chartMinTime = new Date(todayForChart); chartMinTime.setHours(9,0,0,0);
+        const chartMaxTime = new Date(todayForChart); chartMaxTime.setHours(21,0,0,0);
 
         dailyShiftChartInstance = new Chart(dailyShiftChartCanvas, {
             type: 'bar',
@@ -306,7 +309,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dateHeader.innerHTML = '';
         body.innerHTML = '';
         breakRow.innerHTML = '';
-        shortageRow.innerHTML = ''; 
+        shortageRow.innerHTML = '';
 
         const days = [];
         let headerHtml = '<th>従業員名</th>';
@@ -318,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const endDayLoop = bulkViewIsFirstHalf ? 15 : lastDayOfMonth;
 
         for (let day = startDay; day <= endDayLoop; day++) {
-            if (day > lastDayOfMonth) break; 
+            if (day > lastDayOfMonth) break;
             const currentDate = new Date(year, month, day);
             days.push(formatDate(currentDate));
             headerHtml += `<th>${formatDateToJapaneseShort(currentDate)}</th>`;
@@ -340,24 +343,24 @@ document.addEventListener('DOMContentLoaded', function() {
             body.innerHTML += rowHtml;
         });
         
-        let breakTimesRowHtml = '<tr><th class="font-semibold">休憩</th>'; 
+        let breakTimesRowHtml = '<tr><th class="font-semibold">休憩</th>';
         days.forEach(dateString => {
             const manuallyEnteredBreak = appState.manualBreaks[dateString] || '';
             if (currentUser.role === 'manager') {
                  breakTimesRowHtml += `<td><input type="text" class="break-time-input" value="${manuallyEnteredBreak}" placeholder="" data-date="${dateString}"></td>`;
             } else {
-                breakTimesRowHtml += `<td class="break-time-display">${manuallyEnteredBreak || ''}</td>`; 
+                 breakTimesRowHtml += `<td class="break-time-display">${manuallyEnteredBreak || ''}</td>`;
             }
         });
         breakRow.innerHTML = breakTimesRowHtml;
 
-        let shortageRowHtml = '<tr><th class="font-semibold">不足</th>'; 
+        let shortageRowHtml = '<tr><th class="font-semibold">不足</th>';
         days.forEach(dateString => {
             const manuallyEnteredShortage = appState.manualShortages[dateString] || '';
             if (currentUser.role === 'manager') {
                  shortageRowHtml += `<td><input type="text" class="shortage-input" value="${manuallyEnteredShortage}" placeholder="" data-date="${dateString}"></td>`;
             } else {
-                shortageRowHtml += `<td class="shortage-input">${manuallyEnteredShortage || ''}</td>`; 
+                 shortageRowHtml += `<td class="shortage-input">${manuallyEnteredShortage || ''}</td>`;
             }
         });
         shortageRow.innerHTML = shortageRowHtml;
@@ -373,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // --- イベントハンドラ ---
     function setupRoleSwitcher() {
-        roleSwitcher.innerHTML = ''; 
+        roleSwitcher.innerHTML = '';
         const managerUser = appState.users.find(u => u.role === 'manager');
         if (managerUser) {
              const optionManager = document.createElement('option');
@@ -382,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
              roleSwitcher.appendChild(optionManager);
         }
         const optionEmployeeView = document.createElement('option');
-        optionEmployeeView.value = EMPLOYEE_VIEW_ID; 
+        optionEmployeeView.value = EMPLOYEE_VIEW_ID;
         optionEmployeeView.textContent = "従業員ビュー";
         roleSwitcher.appendChild(optionEmployeeView);
         roleSwitcher.value = currentUser.id;
@@ -429,7 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     async function showShiftDetailModal(date) {
-        modalContent.innerHTML = ''; 
+        modalContent.innerHTML = '';
         const dateString = formatDate(date);
         const shiftsForDay = appState.shifts[dateString] || [];
 
@@ -444,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (currentUser.role === 'manager') {
             contentHtml += `<div><h4 class="font-semibold text-lg text-slate-600 border-b pb-1 mb-3">新しいシフトを追加</h4><div class="space-y-3"><div><label for="newShiftEmployee" class="block text-sm font-medium text-slate-700 mb-1">従業員:</label><select id="newShiftEmployee" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm">${appState.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div><div class="grid grid-cols-2 gap-3"><div><label for="newShiftStartTime" class="block text-sm font-medium text-slate-700 mb-1">勤務開始:</label><input type="time" id="newShiftStartTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div><div><label for="newShiftEndTime" class="block text-sm font-medium text-slate-700 mb-1">勤務終了:</label><input type="time" id="newShiftEndTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div></div><div class="grid grid-cols-2 gap-3"><div><label for="newBreakStartTime" class="block text-sm font-medium text-slate-700 mb-1">休憩開始 (任意):</label><input type="time" id="newBreakStartTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div><div><label for="newBreakEndTime" class="block text-sm font-medium text-slate-700 mb-1">休憩終了 (任意):</label><input type="time" id="newBreakEndTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div></div><div><label for="newShiftNotes" class="block text-sm font-medium text-slate-700 mb-1">備考 (任意):</label><input type="text" id="newShiftNotes" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm" placeholder="例: 早番リーダー"></div><button id="addShiftBtn" data-date-string="${dateString}" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition"><i class="fas fa-plus-circle mr-1"></i> シフトを追加</button></div></div>`;
-        } else if (currentUser.role === 'employee_viewer') { 
+        } else if (currentUser.role === 'employee_viewer') {
              contentHtml += '<p class="text-slate-500 text-sm">シフトの編集は店長が行います。</p>';
         }
         modalContent.innerHTML = contentHtml;
@@ -491,7 +494,6 @@ document.addEventListener('DOMContentLoaded', function() {
         shiftDetailModal.style.display = 'block';
     }
     
-
     // --- 初期化 ---
     async function initializeApp() {
         navButtons.calendar.addEventListener('click', () => switchView('calendar'));
@@ -512,7 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
         roleSwitcher.addEventListener('change', (e) => {
             const selectedId = parseInt(e.target.value);
             if (selectedId === EMPLOYEE_VIEW_ID) {
-                currentUser = { id: EMPLOYEE_VIEW_ID, name: '従業員ビュー', role: 'employee_viewer' }; 
+                currentUser = { id: EMPLOYEE_VIEW_ID, name: '従業員ビュー', role: 'employee_viewer' };
             } else {
                 currentUser = appState.users.find(u => u.id === selectedId);
             }
@@ -520,7 +522,9 @@ document.addEventListener('DOMContentLoaded', function() {
             refreshCurrentView();
         });
         
-        await fetchDataForMonth(new Date(2025, 5, 1));
+        // --- 初期化 (修正箇所) ---
+        currentChartDateInput.value = formatDate(chartDisplayDate); // 日別グラフの日付入力欄に今日の日付をセット
+        await fetchDataForMonth(firstDayOfCurrentMonth); // 現在の月のデータを取得
         switchView('calendar');
     }
     
