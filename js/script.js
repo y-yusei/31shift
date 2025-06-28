@@ -174,22 +174,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function switchView(viewKey) {
-        Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
-        setActiveNavButton(viewKey);
-        
-        let targetDate;
-        if (viewKey === 'calendar') targetDate = calendarDisplayDate;
-        else if (viewKey === 'dailyChart') targetDate = chartDisplayDate;
-        else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
-        
-        await fetchDataForMonth(targetDate);
-    }
+            Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
+            setActiveNavButton(viewKey);
+            
+            let targetDate;
+            if (viewKey === 'calendar') targetDate = calendarDisplayDate;
+            else if (viewKey === 'dailyChart') {
+                chartDisplayDate = new Date();
+                targetDate = chartDisplayDate;
+                currentChartDateInput.value = formatDate(chartDisplayDate); 
+            }
+            else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
+            
+            await fetchDataForMonth(targetDate);
+        }
     
     function refreshCurrentView() {
-        if (!mainViews.calendar.classList.contains('hidden')) renderCalendar();
-        else if (!mainViews.dailyChart.classList.contains('hidden')) renderDailyShiftChart();
-        else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
-    }
+            if (!mainViews.calendar.classList.contains('hidden')) renderCalendar();
+            else if (!mainViews.dailyChart.classList.contains('hidden')) renderDailyShiftChart();
+            else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
+        }
 
     // --- UI描画関数 ---
     function renderCalendar() {
@@ -497,10 +501,11 @@ document.addEventListener('DOMContentLoaded', function() {
         navButtons.calendar.addEventListener('click', () => switchView('calendar'));
         navButtons.dailyChart.addEventListener('click', () => switchView('dailyChart'));
         navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
+        saveBulkShiftBtn.addEventListener('click', handleBulkUpdate);
 
         prevMonthBtn.addEventListener('click', async () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); await fetchDataForMonth(calendarDisplayDate); });
         nextMonthBtn.addEventListener('click', async () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); await fetchDataForMonth(calendarDisplayDate); });
-        employeeHighlightSelect.addEventListener('change', (e) => { selectedEmployeeForHighlight = e.target.value ? parseInt(e.target.value) : null; renderCalendar(); });
+        employeeHighlightSelect.addEventListener('change', (e) => { selectedEmployeeForHighlight = e.target.value ? parseInt(e.target.value) : null; renderCalendar();});
         prevDayChartBtn.addEventListener('click', async () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); currentChartDateInput.value = formatDate(chartDisplayDate); await fetchDataForMonth(chartDisplayDate); });
         nextDayChartBtn.addEventListener('click', async () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); currentChartDateInput.value = formatDate(chartDisplayDate); await fetchDataForMonth(chartDisplayDate); });
         currentChartDateInput.addEventListener('change', async (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); await fetchDataForMonth(chartDisplayDate); });

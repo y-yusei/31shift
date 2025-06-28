@@ -137,9 +137,9 @@
                 </div>
                 
                 <div id="bulkShiftView" class="main-view bg-white shadow-md rounded-lg p-6 hidden">
-                    <h2 class="text-2xl font-semibold mb-4 text-slate-700">一括シフト表示・作成</h2>
-                    <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
-                        <div class="flex items-center">
+                     <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
+                         <h2 class="text-2xl font-semibold text-slate-700">一括シフト表示・作成</h2>
+                        <div class="flex items-center gap-4">
                             <button id="prevMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-l-lg transition"><i class="fas fa-angle-double-left"></i> 前月</button>
                             <span id="bulkShiftMonthYear" class="font-semibold text-lg mx-4 text-slate-700"></span>
                             <button id="nextMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-3 rounded-r-lg transition">次月 <i class="fas fa-angle-double-right"></i></button>
@@ -147,6 +147,9 @@
                         <div class="flex items-center gap-2">
                             <span class="text-sm text-slate-600">表示範囲:</span>
                             <button id="toggleBulkShiftPeriodBtn" class="bg-sky-500 hover:bg-sky-600 text-white text-sm py-2 px-3 rounded-lg transition">前半 (1-15日)</button>
+                            <button id="saveBulkShiftBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition">
+                                <i class="fas fa-check mr-2"></i>この内容で保存する
+                            </button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -182,7 +185,7 @@
             user: { password: 'pass123', role: 'employee' }
         };
         const staticUsersForLogin = [
-            { id: 1, name: '田中一郎', role: 'manager' },
+            { id: 1, name: '管理者', role: 'manager' },
         ];
         
         let currentUser = null; 
@@ -278,8 +281,8 @@
             let selectedEmployeeForHighlight = null;
             
             const dummyEvents = { 
-                '2025-06-01': { text: '特売日', icon: 'fas fa-tags' },
-                '2025-06-15': { text: '棚卸し', icon: 'fas fa-boxes-stacked' },
+                '2025-07-26': { text: '茨木フェスティバル', icon: 'fas fa-tags' },
+                '2025-07-27': { text: '茨木フェスティバル', icon: 'fas fa-boxes-stacked' },
             };
 
             function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
