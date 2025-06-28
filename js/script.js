@@ -52,7 +52,29 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedEmployeeForHighlight = null;
     const EMPLOYEE_VIEW_ID = 0;
     
+    const dummyEvents = { 
+        '2025-06-01': { text: '特売日', icon: 'fas fa-tags' },
+        '2025-06-04': { text: '店長会議', icon: 'fas fa-users' },
+        '2025-06-15': { text: '棚卸し', icon: 'fas fa-boxes-stacked' },
+        '2025-06-20': { text: '新商品発売', icon: 'fas fa-gift' },
+    };
     
+    const dummyDataForOfflinePreview = {
+        users: [
+            { id: 1, name: '田中一郎', role: 'manager' }, { id: 2, name: '佐藤花子', role: 'employee' },
+            { id: 3, name: '鈴木三郎', role: 'employee' }, { id: 4, name: '山田太郎', role: 'employee' },
+            { id: 5, name: '高橋美咲', role: 'employee' }, { id: 6, name: '伊藤健太', role: 'employee' },
+            { id: 7, name: '渡辺直子', role: 'employee' }, { id: 8, name: '山本敬子', role: 'employee' },
+            { id: 9, name: '中村修平', role: 'employee' }, { id: 10, name: '小林明美', role: 'employee' },
+            { id: 11, name: '加藤大輔', role: 'employee' },
+        ],
+        shifts: {
+            '2025-06-01': [ { userId: 1, fullName: '田中一郎', time: '09:00 - 18:00', breakTime: '13:00 - 14:00', role: 'manager', notes: '週末対応' } ],
+            '2025-06-02': [ { userId: 3, fullName: '鈴木三郎', time: '09:00 - 17:00', breakTime: '12:00 - 13:00', role: 'employee', notes: '早番' } ],
+        },
+        manualBreaks: {},
+        manualShortages: {},
+    };
 
     // --- データ通信 ---
     async function fetchDataForMonth(date) {
