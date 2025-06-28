@@ -109,9 +109,9 @@
                     <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
                         <h2 class="text-2xl font-semibold mb-2 md:mb-0 text-slate-700">イベント・個人シフト</h2>
                          <div class="flex items-center gap-2">
-                            <label for="employeeHighlightSelect" class="text-sm font-medium text-slate-700">従業員ハイライト:</label>
-                            <select id="employeeHighlightSelect" class="p-2 border border-slate-300 rounded-md shadow-sm text-sm"></select>
-                        </div>
+                             <label for="employeeHighlightSelect" class="text-sm font-medium text-slate-700">従業員ハイライト:</label>
+                             <select id="employeeHighlightSelect" class="p-2 border border-slate-300 rounded-md shadow-sm text-sm"></select>
+                         </div>
                         <div class="flex items-center">
                             <button id="prevMonthBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded-lg transition"><i class="fas fa-angle-left mr-1"></i>前月</button>
                             <h3 id="calendarMonthYear" class="text-xl font-semibold text-slate-700 w-40 text-center mx-2"></h3>
@@ -176,7 +176,7 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- ログイン情報 (本来はサーバーサイドで管理) ---
+        // --- ログイン情報 ---
         const credentials = {
             manager: { password: 'pass123', role: 'manager' },
             user: { password: 'pass123', role: 'employee' }
@@ -271,9 +271,11 @@
             const toggleBulkShiftPeriodBtn = document.getElementById('toggleBulkShiftPeriodBtn');
             const bulkShiftTable = document.getElementById('bulkShiftTable');
 
-            let calendarDisplayDate = new Date(2025, 5, 1);
+            // ★★★ 修正点1: 初期表示を現在の月にする ★★★
+            const today = new Date();
+            let calendarDisplayDate = new Date(today.getFullYear(), today.getMonth(), 1);
             let chartDisplayDate = new Date();
-            let bulkViewDisplayMonth = new Date(2025, 5, 1);
+            let bulkViewDisplayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             let bulkViewIsFirstHalf = true;
             let selectedEmployeeForHighlight = null;
             
@@ -461,7 +463,7 @@
                 const yLabels = []; 
 
                 shiftsForDay.forEach(shift => {
-                    if (!yLabels.includes(shift.fullName)) yLabels.push(shift.fullName);
+                    if (shift.fullName && !yLabels.includes(shift.fullName)) yLabels.push(shift.fullName);
                     if (typeof shift.time !== 'string' || !shift.time.includes(' - ')) return; 
                     
                     const mainStartDate = parseTimeToDate(shift.time.split(' - ')[0], chartDisplayDate);
@@ -566,7 +568,7 @@
                     if (currentUser.role === 'manager') {
                          breakTimesRowHtml += `<td><input type="text" class="break-time-input" value="${manuallyEnteredBreak}" placeholder="" data-date="${dateString}"></td>`;
                     } else {
-                        breakTimesRowHtml += `<td class="break-time-display">${manuallyEnteredBreak || ''}</td>`; 
+                         breakTimesRowHtml += `<td class="break-time-display">${manuallyEnteredBreak || ''}</td>`; 
                     }
                 });
                 breakRow.innerHTML = breakTimesRowHtml;
@@ -577,7 +579,7 @@
                     if (currentUser.role === 'manager') {
                          shortageRowHtml += `<td><input type="text" class="shortage-input" value="${manuallyEnteredShortage}" placeholder="" data-date="${dateString}"></td>`;
                     } else {
-                        shortageRowHtml += `<td class="shortage-input">${manuallyEnteredShortage || ''}</td>`; 
+                         shortageRowHtml += `<td class="shortage-input">${manuallyEnteredShortage || ''}</td>`; 
                     }
                 });
                 shortageRow.innerHTML = shortageRowHtml;
@@ -591,39 +593,36 @@
                 document.getElementById('toggleBulkShiftPeriodBtn').textContent = bulkViewIsFirstHalf ? '前半 (1-15日)' : `後半 (16-${lastDayOfMonth}日)`;
             }
             
-            function handleManualShortageInputChange(event) {
-                appState.manualShortages[event.target.dataset.date] = event.target.value.trim();
+            async function handleManualShortageInputChange(event) {
+                 const input = event.target;
+                 const date = input.dataset.date;
+                 const shortages = input.value.trim();
+                 if (await updateManualData(date, undefined, shortages)) {
+                     appState.manualShortages[date] = shortages;
+                 }
             }
-            function handleManualBreakInputChange(event) {
-                appState.manualBreaks[event.target.dataset.date] = event.target.value.trim();
+            async function handleManualBreakInputChange(event) {
+                 const input = event.target;
+                 const date = input.dataset.date;
+                 const breaks = input.value.trim();
+                 if (await updateManualData(date, breaks, undefined)) {
+                     appState.manualBreaks[date] = breaks;
+                 }
             }
-            function handleBulkShiftInputChange(event) {
-                const userId = parseInt(event.target.dataset.userId);
-                const date = event.target.dataset.date;
-                const time = event.target.value.trim();
+            async function handleBulkShiftInputChange(event) {
+                const input = event.target;
+                const userId = parseInt(input.dataset.userId);
+                const date = input.dataset.date;
+                const time = input.value.trim();
+                const existingShift = (appState.shifts[date] || []).find(s => s.userId === userId);
+                const shiftData = { userId, date, time, breakTime: existingShift?.breakTime, notes: existingShift?.notes };
                 
-                if (!appState.shifts[date]) appState.shifts[date] = [];
-                let shiftIndex = appState.shifts[date].findIndex(s => s.userId == userId);
-
-                if (time) {
-                    const user = appState.users.find(u => u.id == userId);
-                    const newShiftData = { 
-                        userId, fullName: user.name, role: user.role, time,
-                        breakTime: (shiftIndex > -1 ? appState.shifts[date][shiftIndex].breakTime : undefined),
-                        notes: (shiftIndex > -1 ? appState.shifts[date][shiftIndex].notes : '')
-                    };
-                    if (shiftIndex > -1) {
-                        appState.shifts[date][shiftIndex] = newShiftData;
-                    } else {
-                        appState.shifts[date].push(newShiftData);
-                    }
-                } else {
-                    if (shiftIndex > -1) appState.shifts[date].splice(shiftIndex, 1);
+                if (await updateShift(shiftData)) {
+                    await fetchDataForMonth(new Date(date));
                 }
-                renderBulkShiftTable();
             }
             
-            function showShiftDetailModal(date) {
+            async function showShiftDetailModal(date) {
                 modalContent.innerHTML = ''; 
                 const dateString = formatDate(date);
                 const shiftsForDay = appState.shifts[dateString] || [];
@@ -632,7 +631,9 @@
                 contentHtml += '<div class="mb-6"><h4 class="font-semibold text-lg text-slate-600 border-b pb-1 mb-3">確定シフト</h4>';
                 if (shiftsForDay.length > 0) {
                     shiftsForDay.forEach((s, index) => {
-                        contentHtml += `<div class="p-3 rounded-md mb-2 flex justify-between items-center ${s.role === 'manager' ? 'bg-yellow-100' : 'bg-blue-100'}"><div><p class="font-semibold ${s.role === 'manager' ? 'text-yellow-800' : 'text-blue-800'}">${s.fullName}</p><p class="text-sm ${s.role === 'manager' ? 'text-yellow-700' : 'text-blue-700'}">${s.time}</p>${s.breakTime ? `<p class="text-xs text-gray-500">休憩: ${s.breakTime}</p>` : ''}${s.notes ? `<p class="text-xs text-gray-600 mt-1">備考: ${s.notes}</p>` : ''}</div>${currentUser.role === 'manager' ? `<button class="delete-shift-btn" data-shift-index="${index}" data-date-string="${dateString}"><i class="fas fa-trash-alt"></i></button>` : ''}</div>`;
+                         // ユーザー名が存在しない場合（退職者など）の表示を考慮
+                        const displayName = s.fullName || `(不明なUser ID: ${s.userId})`;
+                        contentHtml += `<div class="p-3 rounded-md mb-2 flex justify-between items-center ${s.role === 'manager' ? 'bg-yellow-100' : 'bg-blue-100'}"><div><p class="font-semibold ${s.role === 'manager' ? 'text-yellow-800' : 'text-blue-800'}">${displayName}</p><p class="text-sm ${s.role === 'manager' ? 'text-yellow-700' : 'text-blue-700'}">${s.time}</p>${s.breakTime ? `<p class="text-xs text-gray-500">休憩: ${s.breakTime}</p>` : ''}${s.notes ? `<p class="text-xs text-gray-600 mt-1">備考: ${s.notes}</p>` : ''}</div>${currentUser.role === 'manager' ? `<button class="delete-shift-btn" data-shift-index="${index}" data-date-string="${dateString}"><i class="fas fa-trash-alt"></i></button>` : ''}</div>`;
                     });
                 } else { contentHtml += '<p class="text-slate-500 text-sm">確定シフトはありません。</p>'; }
                 contentHtml += '</div>';
@@ -645,20 +646,22 @@
                 
                 if (currentUser.role === 'manager') {
                     modalContent.querySelectorAll('.delete-shift-btn').forEach(button => {
-                        button.addEventListener('click', (e) => {
+                        button.addEventListener('click', async (e) => {
                             const shiftIndex = parseInt(e.currentTarget.dataset.shiftIndex);
                             const targetDateString = e.currentTarget.dataset.dateString;
-                            if (appState.shifts[targetDateString]?.[shiftIndex]) {
-                                appState.shifts[targetDateString].splice(shiftIndex, 1);
-                                refreshCurrentView();
-                                showShiftDetailModal(date);
+                            const shiftToDelete = (appState.shifts[targetDateString] || [])[shiftIndex];
+                            if (shiftToDelete) {
+                                 if(await updateShift({ userId: shiftToDelete.userId, date: targetDateString, time: '' })) { // 空のtimeを渡して削除
+                                    await fetchDataForMonth(date);
+                                    showShiftDetailModal(date);
+                                 }
                             }
                         });
                     });
 
                     const addShiftBtn = modalContent.querySelector('#addShiftBtn');
                     if(addShiftBtn) {
-                        addShiftBtn.addEventListener('click', (e) => {
+                        addShiftBtn.addEventListener('click', async (e) => {
                             const employeeId = parseInt(modalContent.querySelector('#newShiftEmployee').value);
                             const startTime = modalContent.querySelector('#newShiftStartTime').value;
                             const endTime = modalContent.querySelector('#newShiftEndTime').value;
@@ -669,38 +672,51 @@
                             if (!employeeId || !startTime || !endTime) { alert("従業員、勤務開始・終了時刻は必須です。"); return; }
                             if ((breakStartTime && !breakEndTime) || (!breakStartTime && breakEndTime)) { alert("休憩は開始・終了の両方を入力してください。"); return; }
                             
-                            const user = appState.users.find(u=>u.id == employeeId);
-                            const newShift = { userId: employeeId, fullName: user.name, time: `${startTime} - ${endTime}`, role: user.role, notes };
-                            if (breakStartTime && breakEndTime) newShift.breakTime = `${breakStartTime} - ${breakEndTime}`;
-                            if (!appState.shifts[dateString]) appState.shifts[dateString] = [];
-                            appState.shifts[dateString].push(newShift);
-                            refreshCurrentView();
-                            showShiftDetailModal(date);
+                            const shiftData = { date: dateString, userId: employeeId, time: `${startTime} - ${endTime}`, notes: notes };
+                            if (breakStartTime && breakEndTime) shiftData.breakTime = `${breakStartTime} - ${breakEndTime}`;
+
+                            if(await updateShift(shiftData)){
+                                await fetchDataForMonth(date);
+                                showShiftDetailModal(date);
+                            }
                         });
                     }
                 }
                 shiftDetailModal.style.display = 'block';
             }
             
+            // --- イベントリスナー設定 ---
             updateUserInfo();
             navButtons.calendar.addEventListener('click', () => switchView('calendar'));
             navButtons.dailyChart.addEventListener('click', () => switchView('dailyChart'));
             navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
 
-            prevMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); renderCalendar(); });
-            nextMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); renderCalendar(); });
+            // ★★★ 修正点2: 月変更時にデータを再取得する ★★★
+            prevMonthBtn.addEventListener('click', async () => { 
+                calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); 
+                await fetchDataForMonth(calendarDisplayDate);
+            });
+            nextMonthBtn.addEventListener('click', async () => { 
+                calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1);
+                await fetchDataForMonth(calendarDisplayDate);
+            });
+
             employeeHighlightSelect.addEventListener('change', (e) => {
                 selectedEmployeeForHighlight = e.target.value ? parseInt(e.target.value) : null;
                 renderCalendar();
             });
-            prevDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); currentChartDateInput.value = formatDate(chartDisplayDate); renderDailyShiftChart(); });
-            nextDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); currentChartDateInput.value = formatDate(chartDisplayDate); renderDailyShiftChart(); });
-            currentChartDateInput.addEventListener('change', (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); renderDailyShiftChart(); });
-            prevMonthBulkBtn.addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); renderBulkShiftTable(); });
-            nextMonthBulkBtn.addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); renderBulkShiftTable(); });
+            prevDayChartBtn.addEventListener('click', async () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); currentChartDateInput.value = formatDate(chartDisplayDate); await fetchDataForMonth(chartDisplayDate); });
+            nextDayChartBtn.addEventListener('click', async () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); currentChartDateInput.value = formatDate(chartDisplayDate); await fetchDataForMonth(chartDisplayDate); });
+            currentChartDateInput.addEventListener('change', async (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); await fetchDataForMonth(chartDisplayDate); });
+            
+            prevMonthBulkBtn.addEventListener('click', async () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); await fetchDataForMonth(bulkViewDisplayMonth); });
+            nextMonthBulkBtn.addEventListener('click', async () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); await fetchDataForMonth(bulkViewDisplayMonth); });
+
             toggleBulkShiftPeriodBtn.addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
             shiftDetailModal.addEventListener('click', (event) => { if (event.target === shiftDetailModal) shiftDetailModal.style.display = 'none'; });
             
+            // --- 初期表示処理 ---
+            currentChartDateInput.value = formatDate(chartDisplayDate);
             switchView('calendar');
         }
     });

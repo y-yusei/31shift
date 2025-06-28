@@ -37,6 +37,8 @@ export default {
                 if (!month) return withCors(new Response('Month query parameter is required', { status: 400 }));
 
                 // ★★★ ここからが修正箇所です ★★★
+                // JOIN を LEFT JOIN に変更し、退職者などusersテーブルに存在しないユーザーのシフトがあっても
+                // 他のシフトが問題なく表示されるようにする
                 const shiftsStmt = env.DB.prepare(`
                     SELECT 
                         s.id, s.user_id as userId, u.name as fullName, u.role, 
@@ -55,11 +57,12 @@ export default {
                 const [shiftsResult, usersResult, manualBreaksResult, manualShortagesResult] = await Promise.all([
                     shiftsStmt.all(), usersStmt.all(), manualBreaksStmt.all(), manualShortagesStmt.all()
                 ]);
+
                 const data = {
                     users: usersResult.results,
                     shifts: (shiftsResult.results || []).reduce<Record<string, any[]>>((acc, shift) => { const date = shift.shiftDate as string; if (!acc[date]) acc[date] = []; acc[date].push(shift); return acc; }, {}),
-                    manualBreaks: (manualBreaksResult.results || []).reduce((acc, item) => { acc[item.shift_date as string] = item.break_text; return acc; }, {}),
-                    manualShortages: (manualShortagesResult.results || []).reduce((acc, item) => { acc[item.shift_date as string] = item.shortage_text; return acc; }, {}),
+                    manualBreaks: (manualBreaksResult.results || []).reduce((acc, item: any) => { acc[item.shift_date as string] = item.break_text; return acc; }, {}),
+                    manualShortages: (manualShortagesResult.results || []).reduce((acc, item: any) => { acc[item.shift_date as string] = item.shortage_text; return acc; }, {}),
                 };
                 return withCors(new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
 
@@ -93,9 +96,7 @@ export default {
                 
                 const user: any = results[0];
     
-                // 注: 本来はハッシュ化されたパスワードを安全に比較します
                 if (user && user.password === password) {
-                    // パスワード情報はフロントエンドに返さない
                     const { password, ...userToSend } = user;
                     return withCors(new Response(JSON.stringify({ success: true, user: userToSend }), { headers: { 'Content-Type': 'application/json' }}));
                 } else {
@@ -105,7 +106,6 @@ export default {
             } else if (url.pathname === '/') {
                 return withCors(new Response('Shift Management API is running!'));
             }
-
 
             // どのパスにも一致しない場合
             return withCors(new Response('Not Found', { status: 404 }));
