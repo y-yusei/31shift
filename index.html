@@ -147,9 +147,6 @@
                         <div class="flex items-center gap-2">
                             <span class="text-sm text-slate-600">表示範囲:</span>
                             <button id="toggleBulkShiftPeriodBtn" class="bg-sky-500 hover:bg-sky-600 text-white text-sm py-2 px-3 rounded-lg transition">前半 (1-15日)</button>
-                            <button id="saveBulkShiftBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition">
-                                <i class="fas fa-check mr-2"></i>この内容で保存する
-                            </button>
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -282,7 +279,7 @@
             
             const dummyEvents = { 
                 '2025-07-26': { text: '茨木フェスティバル', icon: 'fas fa-tags' },
-                '2025-07-27': { text: '茨木フェスティバル', icon: 'fas fa-boxes-stacked' },
+                '2025-07-27': { text: '茨木フェスティバル', icon: 'fas fa-tags' },
             };
 
             function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
@@ -360,10 +357,6 @@
                     alert("情報の更新に失敗しました。");
                     return false;
                 }
-            }
-            
-            function updateUserInfo() {
-                 currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`;
             }
 
             function setActiveNavButton(activeViewKey) {
@@ -631,56 +624,15 @@
                 const shiftsForDay = appState.shifts[dateString] || [];
 
                 let contentHtml = `<div class="flex justify-between items-start mb-4"><h3 class="text-2xl font-bold text-slate-700">${formatDateToJapanese(date)}</h3><button id="closeModalBtn" class="text-2xl text-slate-500 hover:text-slate-800">&times;</button></div>`;
-                contentHtml += '<div class="mb-6"><h4 class="font-semibold text-lg text-slate-600 border-b pb-1 mb-3">確定シフト</h4>';
+                contentHtml += '<div class="mb-6"><h4 class="font-semibold text-lg text-slate-600 border-b pb-1 mb-3">シフト</h4>';
                 if (shiftsForDay.length > 0) {
                     shiftsForDay.forEach((s, index) => {
                         contentHtml += `<div class="p-3 rounded-md mb-2 flex justify-between items-center ${s.role === 'manager' ? 'bg-yellow-100' : 'bg-blue-100'}"><div><p class="font-semibold ${s.role === 'manager' ? 'text-yellow-800' : 'text-blue-800'}">${s.fullName}</p><p class="text-sm ${s.role === 'manager' ? 'text-yellow-700' : 'text-blue-700'}">${s.time}</p>${s.breakTime ? `<p class="text-xs text-gray-500">休憩: ${s.breakTime}</p>` : ''}${s.notes ? `<p class="text-xs text-gray-600 mt-1">備考: ${s.notes}</p>` : ''}</div>${currentUser.role === 'manager' ? `<button class="delete-shift-btn" data-shift-index="${index}" data-date-string="${dateString}"><i class="fas fa-trash-alt"></i></button>` : ''}</div>`;
                     });
-                } else { contentHtml += '<p class="text-slate-500 text-sm">確定シフトはありません。</p>'; }
+                } else { contentHtml += '<p class="text-slate-500 text-sm">シフトはありません。</p>'; }
                 contentHtml += '</div>';
 
-                if (currentUser.role === 'manager') {
-                    contentHtml += `<div><h4 class="font-semibold text-lg text-slate-600 border-b pb-1 mb-3">新しいシフトを追加</h4><div class="space-y-3"><div><label for="newShiftEmployee" class="block text-sm font-medium text-slate-700 mb-1">従業員:</label><select id="newShiftEmployee" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm">${appState.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div><div class="grid grid-cols-2 gap-3"><div><label for="newShiftStartTime" class="block text-sm font-medium text-slate-700 mb-1">勤務開始:</label><input type="time" id="newShiftStartTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div><div><label for="newShiftEndTime" class="block text-sm font-medium text-slate-700 mb-1">勤務終了:</label><input type="time" id="newShiftEndTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div></div><div class="grid grid-cols-2 gap-3"><div><label for="newBreakStartTime" class="block text-sm font-medium text-slate-700 mb-1">休憩開始 (任意):</label><input type="time" id="newBreakStartTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div><div><label for="newBreakEndTime" class="block text-sm font-medium text-slate-700 mb-1">休憩終了 (任意):</label><input type="time" id="newBreakEndTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div></div><div><label for="newShiftNotes" class="block text-sm font-medium text-slate-700 mb-1">備考 (任意):</label><input type="text" id="newShiftNotes" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm" placeholder="例: 早番リーダー"></div><button id="addShiftBtn" data-date-string="${dateString}" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition"><i class="fas fa-plus-circle mr-1"></i> シフトを追加</button></div></div>`;
-                }
-                modalContent.innerHTML = contentHtml;
-                document.getElementById('closeModalBtn').addEventListener('click', () => shiftDetailModal.style.display = 'none');
                 
-                if (currentUser.role === 'manager') {
-                    modalContent.querySelectorAll('.delete-shift-btn').forEach(button => {
-                        button.addEventListener('click', (e) => {
-                            const shiftIndex = parseInt(e.currentTarget.dataset.shiftIndex);
-                            const targetDateString = e.currentTarget.dataset.dateString;
-                            if (appState.shifts[targetDateString]?.[shiftIndex]) {
-                                appState.shifts[targetDateString].splice(shiftIndex, 1);
-                                refreshCurrentView();
-                                showShiftDetailModal(date);
-                            }
-                        });
-                    });
-
-                    const addShiftBtn = modalContent.querySelector('#addShiftBtn');
-                    if(addShiftBtn) {
-                        addShiftBtn.addEventListener('click', (e) => {
-                            const employeeId = parseInt(modalContent.querySelector('#newShiftEmployee').value);
-                            const startTime = modalContent.querySelector('#newShiftStartTime').value;
-                            const endTime = modalContent.querySelector('#newShiftEndTime').value;
-                            const breakStartTime = modalContent.querySelector('#newBreakStartTime').value;
-                            const breakEndTime = modalContent.querySelector('#newBreakEndTime').value;
-                            const notes = modalContent.querySelector('#newShiftNotes').value.trim();
-
-                            if (!employeeId || !startTime || !endTime) { alert("従業員、勤務開始・終了時刻は必須です。"); return; }
-                            if ((breakStartTime && !breakEndTime) || (!breakStartTime && breakEndTime)) { alert("休憩は開始・終了の両方を入力してください。"); return; }
-                            
-                            const user = appState.users.find(u=>u.id == employeeId);
-                            const newShift = { userId: employeeId, fullName: user.name, time: `${startTime} - ${endTime}`, role: user.role, notes };
-                            if (breakStartTime && breakEndTime) newShift.breakTime = `${breakStartTime} - ${breakEndTime}`;
-                            if (!appState.shifts[dateString]) appState.shifts[dateString] = [];
-                            appState.shifts[dateString].push(newShift);
-                            refreshCurrentView();
-                            showShiftDetailModal(date);
-                        });
-                    }
-                }
                 shiftDetailModal.style.display = 'block';
             }
             
