@@ -182,7 +182,7 @@
             user: { password: 'pass123', role: 'employee' }
         };
         const staticUsersForLogin = [
-            { id: 1, name: '田中一郎', role: 'manager' },
+            { id: 1, name: '管理者', role: 'manager' },
         ];
         
         let currentUser = null; 
@@ -278,8 +278,8 @@
             let selectedEmployeeForHighlight = null;
             
             const dummyEvents = { 
-                '2025-06-01': { text: '特売日', icon: 'fas fa-tags' },
-                '2025-06-15': { text: '棚卸し', icon: 'fas fa-boxes-stacked' },
+                '2025-07-26': { text: '茨木フェスティバル', icon: 'fas fa-tags' },
+                '2025-07-27': { text: '茨木フェスティバル', icon: 'fas fa-tags' },
             };
 
             function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
@@ -359,9 +359,6 @@
                 }
             }
             
-            function updateUserInfo() {
-                 currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`;
-            }
 
             function setActiveNavButton(activeViewKey) {
                 Object.keys(navButtons).forEach(key => {
