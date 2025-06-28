@@ -358,6 +358,10 @@
                     return false;
                 }
             }
+
+            function updateUserInfo() {
+                 currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`;
+            }
             
 
             function setActiveNavButton(activeViewKey) {
