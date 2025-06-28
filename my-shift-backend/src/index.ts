@@ -2,6 +2,7 @@ export interface Env {
 	DB: D1Database;
 }
 
+// すべての応答にCORSヘッダーを追加するヘルパー関数
 function withCors(response: Response): Response {
 	const newHeaders = new Headers(response.headers);
 	newHeaders.set('Access-Control-Allow-Origin', '*');
@@ -16,6 +17,7 @@ function withCors(response: Response): Response {
 
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		// プリフライトリクエスト(OPTIONS)には、常に成功応答を返す
 		if (request.method === 'OPTIONS') {
 			return new Response(null, {
 				headers: {
@@ -29,7 +31,9 @@ export default {
 		const url = new URL(request.url);
 
 		try {
-			if (url.pathname === '/api/data' && request.method === 'GET') {
+			// --- APIルーティング ---
+			if (url.pathname === '/api/data') {
+				// ... (GET /api/data の処理) ...
 				const month = url.searchParams.get('month');
 				if (!month) return withCors(new Response('Month query parameter is required', { status: 400 }));
 
@@ -49,10 +53,32 @@ export default {
 				};
 				return withCors(new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
 
-			} else if (url.pathname === '/api/login' && request.method === 'POST') {
+			} else if (url.pathname === '/api/shift' && request.method === 'POST') {
+				// ... (POST /api/shift の処理) ...
+				const { userId, date, time, breakTime, notes } = await request.json<any>();
+				if (!userId || !date) return withCors(new Response('userId and date are required', { status: 400 }));
+
+				await env.DB.prepare('DELETE FROM shifts WHERE user_id = ? AND shift_date = ?').bind(userId, date).run();
+				if (time) {
+					await env.DB.prepare('INSERT INTO shifts (user_id, shift_date, time, break_time, notes) VALUES (?, ?, ?, ?, ?)').bind(userId, date, time || null, breakTime || null, notes || null).run();
+				}
+				return withCors(new Response('Shift updated successfully', { status: 200 }));
+
+			} else if (url.pathname === '/api/manuals' && request.method === 'POST') {
+				// ... (POST /api/manuals の処理) ...
+				const { date, breaks, shortages } = await request.json<any>();
+				if (!date) return withCors(new Response('Date is required', { status: 400 }));
+				
+				if(breaks !== undefined) await env.DB.prepare('INSERT OR REPLACE INTO manual_breaks (shift_date, break_text) VALUES (?, ?)').bind(date, breaks).run();
+				if(shortages !== undefined) await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages).run();
+
+				return withCors(new Response('Manual data updated', { status: 200 }));
+			
+            // ★★★ ここからが追加箇所です ★★★
+            } else if (url.pathname === '/api/login' && request.method === 'POST') {
                 const { username, password } = await request.json<any>();
                 if (!username || !password) {
-                    return withCors(new Response(JSON.stringify({ success: false, message: 'ユーザーIDとパスワードは必須です。' }), { status: 400, headers: { 'Content-Type': 'application/json' }}));
+                    return withCors(new Response('Username and password are required', { status: 400 }));
                 }
         
                 const stmt = env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(username);
@@ -60,65 +86,26 @@ export default {
                 
                 const user: any = results[0];
         
+                // 注: 本来はハッシュ化されたパスワードを安全に比較します
                 if (user && user.password === password) {
+                    // パスワード情報はフロントエンドに返さない
                     const { password, ...userToSend } = user;
                     return withCors(new Response(JSON.stringify({ success: true, user: userToSend }), { headers: { 'Content-Type': 'application/json' }}));
                 } else {
-                    return withCors(new Response(JSON.stringify({ success: false, message: 'IDまたはパスワードが正しくありません。' }), { status: 401, headers: { 'Content-Type': 'application/json' }}));
+                    return withCors(new Response(JSON.stringify({ success: false, message: 'Invalid credentials' }), { status: 401, headers: { 'Content-Type': 'application/json' }}));
                 }
+            // ★★★ ここまでが追加箇所です ★★★
 
-			} else if (url.pathname === '/api/bulk-update' && request.method === 'POST') {
-                const { shifts, manualBreaks, manualShortages } = await request.json<any>();
-                const stmts: D1PreparedStatement[] = [];
-
-                if (Array.isArray(shifts) && shifts.length > 0) {
-                    const datesToDelete = [...new Set(shifts.map(s => s.date))];
-                    if(datesToDelete.length > 0) {
-                        const deletePlaceholders = datesToDelete.map(() => '?').join(',');
-                        const deleteQuery = `DELETE FROM shifts WHERE shift_date IN (${deletePlaceholders})`;
-                        stmts.push(env.DB.prepare(deleteQuery).bind(...datesToDelete));
-                    }
-                }
-                
-                if (stmts.length > 0) {
-                    await env.DB.batch(stmts);
-                    stmts.length = 0; 
-                }
-                
-                if (Array.isArray(shifts)) {
-                    for (const shift of shifts) {
-                        if (shift.time) {
-                            stmts.push(
-                                env.DB.prepare('INSERT INTO shifts (user_id, shift_date, time) VALUES (?, ?, ?)')
-                                .bind(shift.userId, shift.date, shift.time)
-                            );
-                        }
-                    }
-                }
-
-                if (manualBreaks) {
-                    for (const [date, text] of Object.entries(manualBreaks)) {
-                        stmts.push(env.DB.prepare('INSERT OR REPLACE INTO manual_breaks (shift_date, break_text) VALUES (?, ?)').bind(date, text));
-                    }
-                }
-
-                if (manualShortages) {
-                    for (const [date, text] of Object.entries(manualShortages)) {
-                       stmts.push(env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, text));
-                    }
-                }
-
-                if (stmts.length > 0) {
-                    await env.DB.batch(stmts);
-                }
-                
-                return withCors(new Response(JSON.stringify({ success: true, message: 'Bulk update successful' }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+			} else if (url.pathname === '/') {
+                return withCors(new Response('Shift Management API is running!'));
             }
+
 
 			// どのパスにも一致しない場合
 			return withCors(new Response('Not Found', { status: 404 }));
 
 		} catch (e: any) {
+			// プログラム全体で予期せぬエラーが発生した場合
 			console.error("Unhandled Error:", e);
 			return withCors(new Response(`Internal Server Error: ${e.message}`, { status: 500 }));
 		}
