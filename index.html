@@ -632,7 +632,42 @@
                 } else { contentHtml += '<p class="text-slate-500 text-sm">シフトはありません。</p>'; }
                 contentHtml += '</div>';
 
-                
+                if (currentUser.role === 'manager') {
+                    modalContent.querySelectorAll('.delete-shift-btn').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const shiftIndex = parseInt(e.currentTarget.dataset.shiftIndex);
+                            const targetDateString = e.currentTarget.dataset.dateString;
+                            if (appState.shifts[targetDateString]?.[shiftIndex]) {
+                                appState.shifts[targetDateString].splice(shiftIndex, 1);
+                                refreshCurrentView();
+                                showShiftDetailModal(date);
+                            }
+                        });
+                    });
+
+                    const addShiftBtn = modalContent.querySelector('#addShiftBtn');
+                    if(addShiftBtn) {
+                        addShiftBtn.addEventListener('click', (e) => {
+                            const employeeId = parseInt(modalContent.querySelector('#newShiftEmployee').value);
+                            const startTime = modalContent.querySelector('#newShiftStartTime').value;
+                            const endTime = modalContent.querySelector('#newShiftEndTime').value;
+                            const breakStartTime = modalContent.querySelector('#newBreakStartTime').value;
+                            const breakEndTime = modalContent.querySelector('#newBreakEndTime').value;
+                            const notes = modalContent.querySelector('#newShiftNotes').value.trim();
+
+                            if (!employeeId || !startTime || !endTime) { alert("従業員、勤務開始・終了時刻は必須です。"); return; }
+                            if ((breakStartTime && !breakEndTime) || (!breakStartTime && breakEndTime)) { alert("休憩は開始・終了の両方を入力してください。"); return; }
+                            
+                            const user = appState.users.find(u=>u.id == employeeId);
+                            const newShift = { userId: employeeId, fullName: user.name, time: `${startTime} - ${endTime}`, role: user.role, notes };
+                            if (breakStartTime && breakEndTime) newShift.breakTime = `${breakStartTime} - ${breakEndTime}`;
+                            if (!appState.shifts[dateString]) appState.shifts[dateString] = [];
+                            appState.shifts[dateString].push(newShift);
+                            refreshCurrentView();
+                            showShiftDetailModal(date);
+                        });
+                    }
+                }
                 shiftDetailModal.style.display = 'block';
             }
             
