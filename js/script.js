@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dailyChart: document.getElementById('showDailyChartViewBtn'),
         bulkShift: document.getElementById('showBulkShiftViewBtn')
     };
-    
+
     const shiftDetailModal = document.getElementById('shiftDetailModal');
     const modalContent = document.getElementById('modalContent');
     const roleSwitcher = document.getElementById('roleSwitcher');
@@ -44,12 +44,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const toggleBulkShiftPeriodBtn = document.getElementById('toggleBulkShiftPeriodBtn');
     const bulkShiftTable = document.getElementById('bulkShiftTable');
 
-    // --- 表示管理用変数 (修正箇所) ---
-    const today = new Date(); // 今日の日付を取得
-    const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1); // 今月の1日を取得
+    // --- 表示管理用変数 ---
+    const today = new Date();
+    const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
     let calendarDisplayDate = new Date(firstDayOfCurrentMonth);
-    let chartDisplayDate = new Date(today); 
+    let chartDisplayDate = new Date(today);
     let bulkViewDisplayMonth = new Date(firstDayOfCurrentMonth);
     let bulkViewIsFirstHalf = true;
     let selectedEmployeeForHighlight = null;
@@ -58,10 +58,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const dummyEvents = {
         '2025-06-01': { text: '特売日', icon: 'fas fa-tags' },
     };
-    
+
     const dummyDataForOfflinePreview = {
         users: [
-            { id: 1, name: '田中一郎', role: 'manager' }, 
+            { id: 1, name: '田中一郎', role: 'manager' },
         ],
         shifts: {
             '2025-06-02': [ { userId: 3, fullName: '鈴木三郎', time: '09:00 - 17:00', breakTime: '12:00 - 13:00', role: 'employee', notes: '早番' } ],
@@ -81,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
             }
             const data = await response.json();
-            
+
             appState.users = data.users || [];
             const monthKey = `${year}-${month}`;
             Object.keys(appState.shifts).forEach(key => { if (key.startsWith(monthKey)) delete appState.shifts[key]; });
@@ -91,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
             appState.shifts = { ...appState.shifts, ...data.shifts };
             appState.manualBreaks = { ...appState.manualBreaks, ...data.manualBreaks };
             appState.manualShortages = { ...appState.manualShortages, ...data.manualShortages };
-            
+
             if (!currentUser && appState.users.length > 0) {
                 initializeUser();
             }
@@ -122,7 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
     }
-    
+
     async function updateManualData(date, breaks, shortages) {
         try {
             const payload = { date };
@@ -142,14 +142,14 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
     }
-    
+
     // --- ユーティリティ関数 ---
     function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
     function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
     function formatDateToJapanese(date) { return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 (${['日', '月', '火', '水', '木', '金', '土'][date.getDay()]})`; }
     function formatDateToJapaneseShort(date) { return `${date.getMonth() + 1}/${date.getDate()}(${['日', '月', '火', '水', '木', '金', '土'][date.getDay()]})`;}
     function isToday(date) { const today = new Date(); return date.toDateString() === today.toDateString(); }
-    
+
     function parseTimeToDate(timeStr, baseDate) {
         if (!timeStr || !timeStr.includes(':')) return null;
         const [hours, minutes] = timeStr.split(':').map(Number);
@@ -170,15 +170,15 @@ document.addEventListener('DOMContentLoaded', function() {
     async function switchView(viewKey) {
         Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
         setActiveNavButton(viewKey);
-        
+
         let targetDate;
         if (viewKey === 'calendar') targetDate = calendarDisplayDate;
         else if (viewKey === 'dailyChart') targetDate = chartDisplayDate;
         else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
-        
+
         await fetchDataForMonth(targetDate);
     }
-    
+
     function refreshCurrentView() {
         if (!mainViews.calendar.classList.contains('hidden')) renderCalendar();
         else if (!mainViews.dailyChart.classList.contains('hidden')) renderDailyShiftChart();
@@ -193,11 +193,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const year = calendarDisplayDate.getFullYear();
         const month = calendarDisplayDate.getMonth();
         calendarMonthYear.textContent = `${year}年 ${month + 1}月`;
-        
+
         const currentSelected = employeeHighlightSelect.value;
         employeeHighlightSelect.innerHTML = `<option value="">全員表示</option>` + appState.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
         employeeHighlightSelect.value = currentSelected;
-        
+
         const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
         const startDayOfWeek = new Date(year, month, 1).getDay();
 
@@ -216,7 +216,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (selectedEmployeeForHighlight && shiftsForDay.some(s => s.userId === selectedEmployeeForHighlight)) {
                 dayCell.classList.add('highlight-shift');
             }
-            
+
             let cellContent = `<div class="calendar-day-header">${day}</div>`;
             const eventForDay = dummyEvents[dateString];
             if (eventForDay) {
@@ -229,40 +229,38 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // =================================================================
-    // ▼▼▼【修正点 1/2】グラフ描画関数の修正 ▼▼▼
+    // ▼▼▼【修正】グラフ描画関数を全面的に見直し ▼▼▼
     // =================================================================
     function renderDailyShiftChart() {
         if (!dailyShiftChartCanvas) return;
         const dateString = formatDate(chartDisplayDate);
-        const shiftsForDay = appState.shifts[dateString] || [];
-
-        // 出勤時間 (timeプロパティの開始時間) でシフトをソート
-        shiftsForDay.sort((a, b) => {
-            const startTimeA = a.time.split(' - ')[0];
-            const startTimeB = b.time.split(' - ')[0];
-            if (startTimeA < startTimeB) {
-                return -1; // a を b より前に置く
-            }
-            if (startTimeA > startTimeB) {
-                return 1; // a を b より後ろに置く
-            }
-            return 0; // 順序は変更しない
-        });
         
-        const chartDatasetData = [];
-        const yLabels = []; // グラフのY軸（従業員名）のラベル
+        // その日のシフトデータを取得。元の配列を壊さないようコピー(.slice())
+        const shiftsForDay = (appState.shifts[dateString] || []).slice();
 
-        // ソート済みの shiftsForDay からグラフデータとラベルを生成
+        // 1. 出勤時間でシフトデータを確実にソートする
+        shiftsForDay.sort((a, b) => {
+            // 'time'プロパティが存在し、' - 'を含むかチェック
+            const timeA = a.time && a.time.includes(' - ') ? a.time.split(' - ')[0] : '99:99'; // 無効な時間は最後に
+            const timeB = b.time && b.time.includes(' - ') ? b.time.split(' - ')[0] : '99:99';
+            return timeA.localeCompare(timeB); // 文字列として比較
+        });
+
+        // 2. ソート済みのシフトリストから、Y軸用のラベル（従業員名）を順番通りに作成する
+        const yLabels = [];
         shiftsForDay.forEach(shift => {
-            // yLabelsに従業員名を追加（重複なし・ソート順を維持）
             if (!yLabels.includes(shift.fullName)) {
                 yLabels.push(shift.fullName);
             }
-            
+        });
+        
+        // 3. グラフ用のデータセットを作成する
+        const chartDatasetData = [];
+        shiftsForDay.forEach(shift => {
             const mainStartDate = parseTimeToDate(shift.time.split(' - ')[0], chartDisplayDate);
             const mainEndDate = parseTimeToDate(shift.time.split(' - ')[1], chartDisplayDate);
             const bgColor = shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)';
-            if (!mainStartDate || !mainEndDate) return;
+            if (!mainStartDate || !mainEndDate) return; // 無効な時間はスキップ
 
             if (shift.breakTime && shift.breakTime.includes(' - ')) {
                 const breakStartDate = parseTimeToDate(shift.breakTime.split(' - ')[0], chartDisplayDate);
@@ -277,9 +275,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 chartDatasetData.push({ x: [mainStartDate.getTime(), mainEndDate.getTime()], y: shift.fullName, originalShift: shift, bgColor: bgColor });
             }
         });
-        
-        // yLabels.sort(); // この行を削除。出勤順で表示するため、アルファベット順ソートは不要。
 
+        // 4. グラフを描画する
         if (dailyShiftChartInstance) dailyShiftChartInstance.destroy();
 
         const todayForChart = new Date(chartDisplayDate);
@@ -288,12 +285,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
         dailyShiftChartInstance = new Chart(dailyShiftChartCanvas, {
             type: 'bar',
-            data: { datasets: [{ label: '勤務時間', data: chartDatasetData, backgroundColor: chartDatasetData.map(d => d.bgColor), borderColor: chartDatasetData.map(d => d.bgColor.replace('0.7', '1')), borderWidth: 1, barPercentage: 0.6, categoryPercentage: 0.7 }] },
+            data: { 
+                // labelsプロパティは `scales.y.labels` に設定するのでここでは不要
+                datasets: [{ 
+                    label: '勤務時間', 
+                    data: chartDatasetData, 
+                    backgroundColor: chartDatasetData.map(d => d.bgColor), 
+                    borderColor: chartDatasetData.map(d => d.bgColor.replace('0.7', '1')), 
+                    borderWidth: 1, 
+                    barPercentage: 0.6, 
+                    categoryPercentage: 0.7 
+                }] 
+            },
             options: {
-                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                indexAxis: 'y', 
+                responsive: true, 
+                maintainAspectRatio: false,
                 scales: {
-                    x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'H時' }, tooltipFormat: 'H:mm' }, min: chartMinTime.getTime(), max: chartMaxTime.getTime(), title: { display: true, text: '時間' } },
-                    y: { type: 'category', labels: yLabels, title: { display: true, text: '従業員' }, offset: true }
+                    x: { 
+                        type: 'time', 
+                        time: { 
+                            unit: 'hour', 
+                            displayFormats: { hour: 'H時' }, // 表示形式を 'H時' に
+                            tooltipFormat: 'H:mm' 
+                        }, 
+                        min: chartMinTime.getTime(), 
+                        max: chartMaxTime.getTime(), 
+                        title: { display: true, text: '時間' } 
+                    },
+                    y: { 
+                        type: 'category', 
+                        labels: yLabels, // ここで順番を指定する
+                        title: { display: true, text: '従業員' }, 
+                        offset: true 
+                    }
                 },
                 plugins: {
                     tooltip: {
@@ -306,7 +331,8 @@ document.addEventListener('DOMContentLoaded', function() {
                             },
                             title: (items) => items[0].label
                         }
-                    }, legend: { display: false }
+                    }, 
+                    legend: { display: false }
                 }
             }
         });
@@ -329,7 +355,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const year = bulkViewDisplayMonth.getFullYear();
         const month = bulkViewDisplayMonth.getMonth();
         const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-        
+
         const startDay = bulkViewIsFirstHalf ? 1 : 16;
         const endDayLoop = bulkViewIsFirstHalf ? 15 : lastDayOfMonth;
 
@@ -340,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
             headerHtml += `<th>${formatDateToJapaneseShort(currentDate)}</th>`;
         }
         dateHeader.innerHTML = headerHtml;
-        
+
         const displayableUsers = [...appState.users.filter(u=>u.role === 'manager'), ...appState.users.filter(u=>u.role === 'employee')];
 
         displayableUsers.forEach(user => {
@@ -355,7 +381,7 @@ document.addEventListener('DOMContentLoaded', function() {
             rowHtml += '</tr>';
             body.innerHTML += rowHtml;
         });
-        
+
         let breakTimesRowHtml = '<tr><th class="font-semibold">休憩</th>';
         days.forEach(dateString => {
             const manuallyEnteredBreak = appState.manualBreaks[dateString] || '';
@@ -386,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
         bulkShiftMonthYearDisplay.textContent = `${bulkViewDisplayMonth.getFullYear()}年 ${bulkViewDisplayMonth.getMonth() + 1}月`;
         toggleBulkShiftPeriodBtn.textContent = bulkViewIsFirstHalf ? '前半 (1-15日)' : `後半 (16-${lastDayOfMonth}日)`;
     }
-    
+
     // --- イベントハンドラ ---
     function setupRoleSwitcher() {
         roleSwitcher.innerHTML = '';
@@ -407,14 +433,14 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateUserInfo() {
         currentUserInfo.innerHTML = `表示モード: <span class="font-bold">${currentUser.name}</span>`;
     }
-    
+
     function initializeUser() {
         const manager = appState.users.find(u => u.role === 'manager');
         currentUser = manager || { id: EMPLOYEE_VIEW_ID, name: '従業員ビュー', role: 'employee_viewer' };
         setupRoleSwitcher();
         updateUserInfo();
     }
-    
+
     async function handleManualShortageInputChange(event) {
         const input = event.target;
         const date = input.dataset.date;
@@ -438,60 +464,52 @@ document.addEventListener('DOMContentLoaded', function() {
         const time = input.value.trim();
         const existingShift = (appState.shifts[date] || []).find(s => s.userId === userId);
         const shiftData = { userId, date, time, breakTime: existingShift?.breakTime, notes: existingShift?.notes };
-        
+
         if (await updateShift(shiftData)) {
             await fetchDataForMonth(new Date(date));
         }
     }
     
     // =================================================================
-    // ▼▼▼【修正点 2/2】詳細モーダル表示関数の修正 ▼▼▼
+    // ▼▼▼【修正】詳細モーダルも同様のロジックでソート ▼▼▼
     // =================================================================
     async function showShiftDetailModal(date) {
         modalContent.innerHTML = '';
         const dateString = formatDate(date);
         
-        // 元の shifts 配列を破壊しないよう .slice() でコピーしてからソートする
+        // 元の配列を壊さないよう .slice() でコピーしてからソート
         const shiftsForDay = (appState.shifts[dateString] || []).slice().sort((a, b) => {
-            const startTimeA = a.time.split(' - ')[0];
-            const startTimeB = b.time.split(' - ')[0];
-            if (startTimeA < startTimeB) return -1;
-            if (startTimeA > startTimeB) return 1;
-            return 0;
+            const timeA = a.time && a.time.includes(' - ') ? a.time.split(' - ')[0] : '99:99';
+            const timeB = b.time && b.time.includes(' - ') ? b.time.split(' - ')[0] : '99:99';
+            return timeA.localeCompare(timeB);
         });
 
         let contentHtml = `<div class="flex justify-between items-start mb-4"><h3 class="text-2xl font-bold text-slate-700">${formatDateToJapanese(date)}</h3><button id="closeModalBtn" class="text-2xl text-slate-500 hover:text-slate-800">&times;</button></div>`;
         contentHtml += '<div class="mb-6"><h4 class="font-semibold text-lg text-slate-600 border-b pb-1 mb-3">確定シフト</h4>';
-        
         if (shiftsForDay.length > 0) {
-            // ソート済みの shiftsForDay を使って表示
-            shiftsForDay.forEach((s) => { // indexは不要になったので削除
-                // 削除ボタンで正しいシフトを特定するために、一意のID(userId)を使うように変更
+            shiftsForDay.forEach((s) => { // ソート済みの配列で表示
                 contentHtml += `<div class="p-3 rounded-md mb-2 flex justify-between items-center ${s.role === 'manager' ? 'bg-yellow-100' : 'bg-blue-100'}"><div><p class="font-semibold ${s.role === 'manager' ? 'text-yellow-800' : 'text-blue-800'}">${s.fullName}</p><p class="text-sm ${s.role === 'manager' ? 'text-yellow-700' : 'text-blue-700'}">${s.time}</p>${s.breakTime ? `<p class="text-xs text-gray-500">休憩: ${s.breakTime}</p>` : ''}${s.notes ? `<p class="text-xs text-gray-600 mt-1">備考: ${s.notes}</p>` : ''}</div>${currentUser.role === 'manager' ? `<button class="delete-shift-btn" data-user-id="${s.userId}" data-date-string="${dateString}"><i class="fas fa-trash-alt"></i></button>` : ''}</div>`;
             });
-        } else {
-            contentHtml += '<p class="text-slate-500 text-sm">確定シフトはありません。</p>';
-        }
+        } else { contentHtml += '<p class="text-slate-500 text-sm">確定シフトはありません。</p>'; }
         contentHtml += '</div>';
 
         if (currentUser.role === 'manager') {
             contentHtml += `<div><h4 class="font-semibold text-lg text-slate-600 border-b pb-1 mb-3">新しいシフトを追加</h4><div class="space-y-3"><div><label for="newShiftEmployee" class="block text-sm font-medium text-slate-700 mb-1">従業員:</label><select id="newShiftEmployee" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm">${appState.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('')}</select></div><div class="grid grid-cols-2 gap-3"><div><label for="newShiftStartTime" class="block text-sm font-medium text-slate-700 mb-1">勤務開始:</label><input type="time" id="newShiftStartTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div><div><label for="newShiftEndTime" class="block text-sm font-medium text-slate-700 mb-1">勤務終了:</label><input type="time" id="newShiftEndTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div></div><div class="grid grid-cols-2 gap-3"><div><label for="newBreakStartTime" class="block text-sm font-medium text-slate-700 mb-1">休憩開始 (任意):</label><input type="time" id="newBreakStartTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div><div><label for="newBreakEndTime" class="block text-sm font-medium text-slate-700 mb-1">休憩終了 (任意):</label><input type="time" id="newBreakEndTime" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm"></div></div><div><label for="newShiftNotes" class="block text-sm font-medium text-slate-700 mb-1">備考 (任意):</label><input type="text" id="newShiftNotes" class="w-full p-2 border border-slate-300 rounded-md shadow-sm text-sm" placeholder="例: 早番リーダー"></div><button id="addShiftBtn" data-date-string="${dateString}" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition"><i class="fas fa-plus-circle mr-1"></i> シフトを追加</button></div></div>`;
         } else if (currentUser.role === 'employee_viewer') {
-                contentHtml += '<p class="text-slate-500 text-sm">シフトの編集は店長が行います。</p>';
+            contentHtml += '<p class="text-slate-500 text-sm">シフトの編集は店長が行います。</p>';
         }
         modalContent.innerHTML = contentHtml;
         document.getElementById('closeModalBtn').addEventListener('click', () => shiftDetailModal.style.display = 'none');
-        
+
         if (currentUser.role === 'manager') {
             modalContent.querySelectorAll('.delete-shift-btn').forEach(button => {
                 button.addEventListener('click', async (e) => {
                     const userId = parseInt(e.currentTarget.dataset.userId);
                     const targetDateString = e.currentTarget.dataset.dateString;
-                    
                     if (userId) {
-                        if(await updateShift({ userId: userId, date: targetDateString, time: '' })) { // timeを空にすることで削除
+                        if(await updateShift({ userId: userId, date: targetDateString, time: '' })) {
                             await fetchDataForMonth(date);
-                            showShiftDetailModal(date); // モーダルを再描画
+                            showShiftDetailModal(date);
                         }
                     }
                 });
@@ -509,7 +527,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     if (!employeeId || !startTime || !endTime) { alert("従業員、勤務開始・終了時刻は必須です。"); return; }
                     if ((breakStartTime && !breakEndTime) || (!breakStartTime && breakEndTime)) { alert("休憩は開始・終了の両方を入力してください。"); return; }
-                    
+
                     const shiftData = { date: dateString, userId: employeeId, time: `${startTime} - ${endTime}`, notes: notes };
                     if (breakStartTime && breakEndTime) shiftData.breakTime = `${breakStartTime} - ${breakEndTime}`;
 
@@ -522,7 +540,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         shiftDetailModal.style.display = 'block';
     }
-    
+
     // --- 初期化 ---
     async function initializeApp() {
         navButtons.calendar.addEventListener('click', () => switchView('calendar'));
@@ -539,7 +557,7 @@ document.addEventListener('DOMContentLoaded', function() {
         nextMonthBulkBtn.addEventListener('click', async () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); await fetchDataForMonth(bulkViewDisplayMonth); });
         toggleBulkShiftPeriodBtn.addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
         shiftDetailModal.addEventListener('click', (event) => { if (event.target === shiftDetailModal) shiftDetailModal.style.display = 'none'; });
-        
+
         roleSwitcher.addEventListener('change', (e) => {
             const selectedId = parseInt(e.target.value);
             if (selectedId === EMPLOYEE_VIEW_ID) {
@@ -550,12 +568,11 @@ document.addEventListener('DOMContentLoaded', function() {
             updateUserInfo();
             refreshCurrentView();
         });
-        
-        // --- 初期化 (修正箇所) ---
-        currentChartDateInput.value = formatDate(chartDisplayDate); // 日別グラフの日付入力欄に今日の日付をセット
-        await fetchDataForMonth(firstDayOfCurrentMonth); // 現在の月のデータを取得
+
+        currentChartDateInput.value = formatDate(chartDisplayDate);
+        await fetchDataForMonth(firstDayOfCurrentMonth);
         switchView('calendar');
     }
-    
+
     initializeApp();
 });
