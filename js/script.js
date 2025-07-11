@@ -229,39 +229,48 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // =================================================================
-    // ▼▼▼【修正】グラフ描画関数を全面的に見直し ▼▼▼
+    // ▼▼▼【最終修正案】グラフ描画関数とデバッグログ ▼▼▼
     // =================================================================
     function renderDailyShiftChart() {
         if (!dailyShiftChartCanvas) return;
         const dateString = formatDate(chartDisplayDate);
+        const originalShifts = appState.shifts[dateString] || [];
         
-        // その日のシフトデータを取得。元の配列を壊さないようコピー(.slice())
-        const shiftsForDay = (appState.shifts[dateString] || []).slice();
+        // --- デバッグログ開始 ---
+        console.clear(); // 前のログを消去
+        console.log(`--- 日別グラフのデバッグ開始 (${dateString}) ---`);
+        // JSONを使ってオブジェクトをコピーし、元のデータが変更されないようにする
+        console.log("1. 受け取った直後のシフトデータ:", JSON.parse(JSON.stringify(originalShifts)));
+        // --- デバッグログ終了 ---
 
-        // 1. 出勤時間でシフトデータを確実にソートする
-        shiftsForDay.sort((a, b) => {
-            // 'time'プロパティが存在し、' - 'を含むかチェック
-            const timeA = a.time && a.time.includes(' - ') ? a.time.split(' - ')[0] : '99:99'; // 無効な時間は最後に
-            const timeB = b.time && b.time.includes(' - ') ? b.time.split(' - ')[0] : '99:99';
-            return timeA.localeCompare(timeB); // 文字列として比較
-        });
+        // 1. 有効なシフトデータだけをフィルタリングし、出勤時間でソートする
+        const sortedShifts = originalShifts
+            .filter(shift => shift.time && shift.time.includes(' - '))
+            .sort((a, b) => {
+                const startTimeA = a.time.split(' - ')[0];
+                const startTimeB = b.time.split(' - ')[0];
+                return startTimeA.localeCompare(startTimeB); // '09:00' と '10:00'などを正しく比較
+            });
+        
+        console.log("2. 並び替え後のシフトデータ:", JSON.parse(JSON.stringify(sortedShifts)));
 
-        // 2. ソート済みのシフトリストから、Y軸用のラベル（従業員名）を順番通りに作成する
+        // 2. ソート済みリストを元に、Y軸のラベルとグラフのデータを作成
         const yLabels = [];
-        shiftsForDay.forEach(shift => {
+        const chartDatasetData = [];
+
+        sortedShifts.forEach(shift => {
+            // Y軸ラベル（従業員名）を、ソートされた順で追加（重複はさせない）
             if (!yLabels.includes(shift.fullName)) {
                 yLabels.push(shift.fullName);
             }
-        });
-        
-        // 3. グラフ用のデータセットを作成する
-        const chartDatasetData = [];
-        shiftsForDay.forEach(shift => {
+
+            // グラフのバー（勤務時間）のデータを作成
             const mainStartDate = parseTimeToDate(shift.time.split(' - ')[0], chartDisplayDate);
             const mainEndDate = parseTimeToDate(shift.time.split(' - ')[1], chartDisplayDate);
-            const bgColor = shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)';
-            if (!mainStartDate || !mainEndDate) return; // 無効な時間はスキップ
+            if (!mainStartDate || !mainEndDate) return;
 
+            const bgColor = shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)';
+            
             if (shift.breakTime && shift.breakTime.includes(' - ')) {
                 const breakStartDate = parseTimeToDate(shift.breakTime.split(' - ')[0], chartDisplayDate);
                 const breakEndDate = parseTimeToDate(shift.breakTime.split(' - ')[1], chartDisplayDate);
@@ -275,8 +284,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 chartDatasetData.push({ x: [mainStartDate.getTime(), mainEndDate.getTime()], y: shift.fullName, originalShift: shift, bgColor: bgColor });
             }
         });
+        
+        console.log("3. 最終的にグラフのY軸に使われる従業員名の順番:", yLabels);
+        console.log("--- デバッグ終了 ---");
 
-        // 4. グラフを描画する
+        // 3. グラフを描画
         if (dailyShiftChartInstance) dailyShiftChartInstance.destroy();
 
         const todayForChart = new Date(chartDisplayDate);
@@ -285,53 +297,50 @@ document.addEventListener('DOMContentLoaded', function() {
 
         dailyShiftChartInstance = new Chart(dailyShiftChartCanvas, {
             type: 'bar',
-            data: { 
-                // labelsプロパティは `scales.y.labels` に設定するのでここでは不要
-                datasets: [{ 
-                    label: '勤務時間', 
-                    data: chartDatasetData, 
-                    backgroundColor: chartDatasetData.map(d => d.bgColor), 
-                    borderColor: chartDatasetData.map(d => d.bgColor.replace('0.7', '1')), 
-                    borderWidth: 1, 
-                    barPercentage: 0.6, 
-                    categoryPercentage: 0.7 
-                }] 
+            data: {
+                datasets: [{
+                    label: '勤務時間',
+                    data: chartDatasetData,
+                    backgroundColor: chartDatasetData.map(d => d.bgColor),
+                    borderColor: chartDatasetData.map(d => d.bgColor.replace('0.7', '1')),
+                    borderWidth: 1,
+                    barPercentage: 0.6,
+                    categoryPercentage: 0.7
+                }]
             },
             options: {
-                indexAxis: 'y', 
-                responsive: true, 
+                indexAxis: 'y',
+                responsive: true,
                 maintainAspectRatio: false,
                 scales: {
-                    x: { 
-                        type: 'time', 
-                        time: { 
-                            unit: 'hour', 
-                            displayFormats: { hour: 'H時' }, // 表示形式を 'H時' に
-                            tooltipFormat: 'H:mm' 
-                        }, 
-                        min: chartMinTime.getTime(), 
-                        max: chartMaxTime.getTime(), 
-                        title: { display: true, text: '時間' } 
+                    x: {
+                        type: 'time',
+                        time: { unit: 'hour', displayFormats: { hour: 'H時' }, tooltipFormat: 'H:mm' },
+                        min: chartMinTime.getTime(),
+                        max: chartMaxTime.getTime(),
+                        title: { display: true, text: '時間' }
                     },
-                    y: { 
-                        type: 'category', 
-                        labels: yLabels, // ここで順番を指定する
-                        title: { display: true, text: '従業員' }, 
-                        offset: true 
+                    y: {
+                        type: 'category',
+                        labels: yLabels, // ソート済みの従業員リストをY軸の順番として指定
+                        title: { display: true, text: '従業員' },
+                        offset: true
                     }
                 },
                 plugins: {
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                const dp = context.dataset.data[context.dataIndex]; const os = dp.originalShift;
+                                const dp = context.dataset.data[context.dataIndex];
+                                const os = dp.originalShift;
                                 let l = `${formatTime(new Date(context.raw[0]))} - ${formatTime(new Date(context.raw[1]))}`;
-                                if (os.notes) l += ` (備考: ${os.notes})`; if (os.breakTime) l += ` (休憩: ${os.breakTime})`;
+                                if (os.notes) l += ` (備考: ${os.notes})`;
+                                if (os.breakTime) l += ` (休憩: ${os.breakTime})`;
                                 return l;
                             },
                             title: (items) => items[0].label
                         }
-                    }, 
+                    },
                     legend: { display: false }
                 }
             }
@@ -471,23 +480,24 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // =================================================================
-    // ▼▼▼【修正】詳細モーダルも同様のロジックでソート ▼▼▼
+    // ▼▼▼【最終修正案】詳細モーダルのソート処理 ▼▼▼
     // =================================================================
     async function showShiftDetailModal(date) {
         modalContent.innerHTML = '';
         const dateString = formatDate(date);
         
-        // 元の配列を壊さないよう .slice() でコピーしてからソート
-        const shiftsForDay = (appState.shifts[dateString] || []).slice().sort((a, b) => {
-            const timeA = a.time && a.time.includes(' - ') ? a.time.split(' - ')[0] : '99:99';
-            const timeB = b.time && b.time.includes(' - ') ? b.time.split(' - ')[0] : '99:99';
-            return timeA.localeCompare(timeB);
-        });
+        const shiftsForDay = (appState.shifts[dateString] || [])
+            .slice()
+            .sort((a, b) => {
+                const timeA = a.time && a.time.includes(' - ') ? a.time.split(' - ')[0] : '99:99';
+                const timeB = b.time && b.time.includes(' - ') ? b.time.split(' - ')[0] : '99:99';
+                return timeA.localeCompare(timeB);
+            });
 
         let contentHtml = `<div class="flex justify-between items-start mb-4"><h3 class="text-2xl font-bold text-slate-700">${formatDateToJapanese(date)}</h3><button id="closeModalBtn" class="text-2xl text-slate-500 hover:text-slate-800">&times;</button></div>`;
         contentHtml += '<div class="mb-6"><h4 class="font-semibold text-lg text-slate-600 border-b pb-1 mb-3">確定シフト</h4>';
         if (shiftsForDay.length > 0) {
-            shiftsForDay.forEach((s) => { // ソート済みの配列で表示
+            shiftsForDay.forEach((s) => {
                 contentHtml += `<div class="p-3 rounded-md mb-2 flex justify-between items-center ${s.role === 'manager' ? 'bg-yellow-100' : 'bg-blue-100'}"><div><p class="font-semibold ${s.role === 'manager' ? 'text-yellow-800' : 'text-blue-800'}">${s.fullName}</p><p class="text-sm ${s.role === 'manager' ? 'text-yellow-700' : 'text-blue-700'}">${s.time}</p>${s.breakTime ? `<p class="text-xs text-gray-500">休憩: ${s.breakTime}</p>` : ''}${s.notes ? `<p class="text-xs text-gray-600 mt-1">備考: ${s.notes}</p>` : ''}</div>${currentUser.role === 'manager' ? `<button class="delete-shift-btn" data-user-id="${s.userId}" data-date-string="${dateString}"><i class="fas fa-trash-alt"></i></button>` : ''}</div>`;
             });
         } else { contentHtml += '<p class="text-slate-500 text-sm">確定シフトはありません。</p>'; }
