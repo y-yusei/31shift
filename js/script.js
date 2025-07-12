@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- グローバル変数と設定 ---
     const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev';
     let dailyShiftChartInstance = null;
-    let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
+    let appState = { users: [], shifts: {} };
     let currentUser = null;
 
     // --- DOM要素の取得 ---
@@ -18,38 +18,14 @@ document.addEventListener('DOMContentLoaded', function() {
         dailyChart: document.getElementById('showDailyChartViewBtn'),
         bulkShift: document.getElementById('showBulkShiftViewBtn')
     };
-    const shiftDetailModal = document.getElementById('shiftDetailModal');
-    const modalContent = document.getElementById('modalContent');
-    const roleSwitcher = document.getElementById('roleSwitcher');
-    const currentUserInfo = document.getElementById('currentUserInfo');
-    if (document.getElementById('currentYear')) {
-        document.getElementById('currentYear').textContent = new Date().getFullYear();
-    }
-    const calendarGrid = document.getElementById('calendarGrid');
-    const calendarMonthYear = document.getElementById('calendarMonthYear');
-    const employeeHighlightSelect = document.getElementById('employeeHighlightSelect');
-    const prevMonthBtn = document.getElementById('prevMonthBtn');
-    const nextMonthBtn = document.getElementById('nextMonthBtn');
-    const dailyShiftChartCanvas = document.getElementById('dailyShiftChart');
     const currentChartDateInput = document.getElementById('currentChartDate');
-    const prevDayChartBtn = document.getElementById('prevDayChartBtn');
-    const nextDayChartBtn = document.getElementById('nextDayChartBtn');
-    const bulkShiftMonthYearDisplay = document.getElementById('bulkShiftMonthYear');
-    const prevMonthBulkBtn = document.getElementById('prevMonthBulkBtn');
-    const nextMonthBulkBtn = document.getElementById('nextMonthBulkBtn');
-    const toggleBulkShiftPeriodBtn = document.getElementById('toggleBulkShiftPeriodBtn');
-    const bulkShiftTable = document.getElementById('bulkShiftTable');
-
+    const dailyShiftChartCanvas = document.getElementById('dailyShiftChart');
+    
     // --- 状態管理用変数 ---
     const today = new Date();
-    const firstDayOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    let calendarDisplayDate = new Date(firstDayOfCurrentMonth);
     let chartDisplayDate = new Date(today);
-    let bulkViewDisplayMonth = new Date(firstDayOfCurrentMonth);
-    let bulkViewIsFirstHalf = true;
-    let selectedEmployeeForHighlight = null;
-    const EMPLOYEE_VIEW_ID = 0;
-    
+    let calendarDisplayDate = new Date(today.getFullYear(), today.getMonth(), 1);
+
     // --- ユーティリティ関数 ---
     function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
     function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
@@ -60,7 +36,7 @@ document.addEventListener('DOMContentLoaded', function() {
         date.setHours(hours, minutes, 0, 0);
         return date;
     }
-
+    
     // --- 主要な描画関数 ---
 
     function renderDailyShiftChart() {
@@ -69,7 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const dateString = formatDate(chartDisplayDate);
             const shiftsForDay = (appState.shifts[dateString] || []).slice();
-
+            
             // ▼▼▼【並び替え処理】▼▼▼
             const sortedShifts = shiftsForDay
                 .filter(shift => shift && typeof shift.time === 'string' && shift.time.includes(' - '))
@@ -149,41 +125,62 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- 他の関数（ここでは省略しますが、実際にはコードが必要です） ---
-    function renderCalendar() { /* ... 元のコード ... */ }
-    function renderBulkShiftTable() { /* ... 元のコード ... */ }
-    function showShiftDetailModal(date) { /* ... 元のコード ... */ }
-    async function fetchDataForMonth(date) { /* ... 元のコード ... */ }
-    function setActiveNavButton(activeViewKey) { /* ... 元のコード ... */ }
-    function initializeUser() { /* ... 元のコード ... */ }
-    async function switchView(viewKey) {
-        Object.keys(mainViews).forEach(key => {
-            if (mainViews[key]) mainViews[key].classList.toggle('hidden', key !== viewKey);
-        });
-        setActiveNavButton(viewKey);
-        await fetchDataForMonth(chartDisplayDate);
+    function renderCalendar() {
+        // カレンダーの描画ロジック（今回は省略）
     }
+
+    // --- データ取得とビュー管理 ---
+    async function fetchDataForMonth(date) {
+        const year = date.getFullYear();
+        const month = ('0' + (date.getMonth() + 1)).slice(-2);
+        const url = `${API_BASE_URL}/api/data?month=${year}-${month}`;
+        
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('APIからのデータ取得に失敗しました。');
+            
+            const data = await response.json();
+            appState.users = data.users || [];
+            appState.shifts = data.shifts || {};
+            
+            if (!currentUser && appState.users.length > 0) {
+                initializeUser();
+            }
+            refreshCurrentView();
+        } catch (error) {
+            console.error("fetchDataForMonthでエラー:", error);
+        }
+    }
+
     function refreshCurrentView() {
         if (mainViews.dailyChart && !mainViews.dailyChart.classList.contains('hidden')) {
             renderDailyShiftChart();
         } else if (mainViews.calendar && !mainViews.calendar.classList.contains('hidden')) {
             renderCalendar();
-        } else if (mainViews.bulkShift && !mainViews.bulkShift.classList.contains('hidden')) {
-            renderBulkShiftTable();
         }
     }
 
+    async function switchView(viewKey) {
+        Object.keys(mainViews).forEach(key => {
+            if (mainViews[key]) mainViews[key].classList.toggle('hidden', key !== viewKey);
+        });
+        Object.keys(navButtons).forEach(key => {
+            if (navButtons[key]) navButtons[key].classList.toggle('active', key === viewKey);
+        });
+        await fetchDataForMonth(viewKey === 'dailyChart' ? chartDisplayDate : calendarDisplayDate);
+    }
+    
+    function initializeUser() {
+        // ユーザー初期化ロジック（今回は省略）
+    }
+    
     // --- アプリケーション初期化 ---
     async function initializeApp() {
-        if (navButtons.dailyChart) {
-            navButtons.dailyChart.addEventListener('click', () => switchView('dailyChart'));
-        }
-        if (navButtons.calendar) {
-            navButtons.calendar.addEventListener('click', () => switchView('calendar'));
-        }
-        if (navButtons.bulkShift) {
-            navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
-        }
+        Object.keys(navButtons).forEach(key => {
+            if (navButtons[key]) {
+                navButtons[key].addEventListener('click', () => switchView(key));
+            }
+        });
         
         if(currentChartDateInput) {
             currentChartDateInput.value = formatDate(chartDisplayDate);
@@ -194,7 +191,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         // 初回ロード
-        await fetchDataForMonth(firstDayOfCurrentMonth);
         switchView('calendar');
     }
 

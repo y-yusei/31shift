@@ -1,0 +1,87 @@
+/* 基本的なフォント設定と背景色 */
+body {
+    font-family: 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', Meiryo, メイリオ, Osaka, 'MS PGothic', sans-serif;
+}
+
+/* ナビゲーションボタンのスタイル */
+.nav-btn {
+    padding: 1rem;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    color: #475569; /* slate-600 */
+}
+
+.nav-btn:hover {
+    background-color: #f1f5f9; /* slate-100 */
+    color: #1e293b; /* slate-800 */
+}
+
+/* アクティブなナビゲーションボタンのスタイル */
+.nav-btn.active {
+    border-bottom-color: #3b82f6; /* blue-500 */
+    color: #3b82f6;
+}
+
+/* 各ビューの基本スタイル */
+.view-content {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* 非表示クラス */
+.hidden {
+    display: none;
+}
+
+/* カレンダーの日付セル */
+.calendar-day {
+    min-height: 120px;
+    background-color: white;
+    border: 1px solid #e2e8f0; /* slate-200 */
+    transition: background-color 0.2s;
+    padding: 0.5rem;
+}
+
+.calendar-day:hover {
+    background-color: #f8fafc; /* slate-50 */
+    cursor: pointer;
+}
+
+.other-month {
+    min-height: 120px;
+    background-color: #f1f5f9; /* slate-100 */
+}
+
+.today {
+    background-color: #fef9c3; /* yellow-100 */
+    font-weight: bold;
+}
+
+.highlight-shift {
+    background-color: #dbeafe; /* blue-100 */
+    border: 1px solid #93c5fd; /* blue-300 */
+}
+
+
+/* 前月・翌月ボタンなどの共通スタイル */
+.control-btn {
+    padding: 0.5rem 1rem;
+    background-color: #e2e8f0; /* slate-200 */
+    border-radius: 0.375rem;
+    transition: background-color 0.2s;
+    font-weight: 500;
+}
+.control-btn:hover {
+    background-color: #cbd5e1; /* slate-300 */
+}
+
+
+/* フェードインアニメーション */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
