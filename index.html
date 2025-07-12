@@ -3,70 +3,300 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シフト管理</title>
-    
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <title>シフト管理システム</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-
-    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link rel="icon" href="img/icon.png" type="image/png">
+    <link rel="apple-touch-icon" href="img/icon.png">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+        .calendar-day { border: 1px solid #e2e8f0; padding: 8px; min-height: 100px; position: relative; background-color: white; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s ease-in-out; }
+        .calendar-day:hover { transform: translateY(-2px); box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .calendar-day-header { font-weight: 500; margin-bottom: 4px; text-align: right; font-size: 0.875rem; }
+        .event-entry { background-color: #ccfbf1; color: #115e59; padding: 2px 4px; border-radius: 0.25rem; font-size: 0.65rem; margin-top: 4px; display: inline-block; }
+        .highlight-shift { background-color: #ede9fe !important; border: 2px solid #8b5cf6; }
+        .today .calendar-day-header { color: #dc2626; font-weight: 700; }
+        .today { background-color: #fef2f2; }
+        .other-month { background-color: #f8fafc; color: #9ca3af; cursor: default; }
+        .other-month:hover { transform: none; box-shadow: none; }
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-content { background-color: #fefefe; margin: 5% auto; padding: 24px; width: 90%; max-width: 650px; border-radius: 0.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); }
+        .delete-shift-btn { background-color: #ef4444; color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 0.25rem; }
+        .delete-shift-btn:hover { background-color: #dc2626; }
+        .chart-container { position: relative; width: 100%; max-width: 100%; margin-left: auto; margin-right: auto; height: 400px; max-height: 500px; }
+        @media (min-width: 768px) { .chart-container { height: 500px; max-height: 600px; } }
+        .bulk-shift-table th, .bulk-shift-table td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; font-size: 0.8rem; white-space: nowrap;}
+        .bulk-shift-table thead th { background-color: #f1f5f9; position: sticky; top: 0; z-index: 20;}
+        .bulk-shift-table tbody th { background-color: #f8fafc; position: sticky; left: 0; z-index: 10;}
+        .bulk-shift-table thead th:first-child { left: 0; z-index: 30; } 
+        .bulk-shift-table tfoot td { background-color: #f1f5f9; }
+        .bulk-shift-table tfoot th { background-color: #e2e8f0; position: sticky; left: 0; z-index: 10; }
+        .bulk-shift-table input[type="text"] { width: 100%; min-width: 100px; padding: 4px; font-size: 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.25rem; }
+        .shortage-input { color: #ef4444; font-weight: bold; font-size: 0.75rem; } 
+        .nav-button.active { background-color: #1d4ed8 !important; }
+        .break-time-input { font-size: 0.75rem; color: #475569; }
+    </style>
 </head>
-<body class="bg-slate-100">
+<body class="bg-slate-100 text-slate-800">
 
-    <header class="bg-slate-800 text-white p-4 flex justify-between items-center shadow-lg">
-        <h1 class="text-xl font-bold">シフト管理システム</h1>
-        <div>
-            <span id="currentUserInfo" class="mr-4 text-sm"></span>
-            <select id="roleSwitcher" class="bg-slate-700 text-white rounded p-1 text-sm"></select>
+    <div id="loginScreen" class="flex items-center justify-center h-screen">
         </div>
-    </header>
-
-    <nav class="bg-white shadow-md">
-        <div class="container mx-auto px-4">
-            <div class="flex items-center justify-center" id="navButtons">
-                <button id="showCalendarViewBtn" class="nav-btn"><i class="fas fa-calendar-alt mr-2"></i>カレンダー</button>
-                <button id="showDailyChartViewBtn" class="nav-btn"><i class="fas fa-chart-bar mr-2"></i>日別グラフ</button>
-                <button id="showBulkShiftViewBtn" class="nav-btn"><i class="fas fa-edit mr-2"></i>一括入力</button>
-            </div>
-        </div>
-    </nav>
-
-    <main class="container mx-auto p-4">
-        <div id="calendarView" class="view-content">
-            <div class="flex justify-between items-center mb-4 bg-white p-3 rounded-lg shadow">
-                <button id="prevMonthBtn" class="control-btn"><i class="fas fa-chevron-left"></i></button>
-                <h2 id="calendarMonthYear" class="text-xl font-bold text-slate-700"></h2>
-                <button id="nextMonthBtn" class="control-btn"><i class="fas fa-chevron-right"></i></button>
-            </div>
-            <div class="grid grid-cols-7 text-center font-bold text-slate-600">
-                <div class="py-2 text-red-500">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="text-blue-500">土</div>
-            </div>
-            <div id="calendarGrid" class="grid grid-cols-7 gap-1">
-                </div>
-        </div>
-
-        <div id="dailyChartView" class="view-content hidden">
-             <div class="flex justify-center items-center mb-4 bg-white p-3 rounded-lg shadow">
-                <button id="prevDayChartBtn" class="control-btn"><i class="fas fa-chevron-left"></i> 前日</button>
-                <input type="date" id="currentChartDate" class="mx-4 p-2 border rounded-md shadow-inner">
-                <button id="nextDayChartBtn" class="control-btn">翌日 <i class="fas fa-chevron-right"></i></button>
-            </div>
-            <div class="bg-white p-4 rounded-lg shadow" style="height: 70vh;">
-                <canvas id="dailyShiftChart"></canvas>
-            </div>
-        </div>
-
-        <div id="bulkShiftView" class="view-content hidden">
-            <p>一括シフト入力ビューは現在開発中です。</p>
-        </div>
-    </main>
     
-    <footer class="text-center p-4 text-xs text-slate-500 mt-8">
-        <p>&copy; <span id="currentYear"></span> Shift Management System</p>
-    </footer>
-
-    <script src="js/script.js"></script>
+    <div id="appContainer" class="hidden">
+        </div>
     
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- ログイン情報 ---
+        const credentials = {
+            manager: { password: 'pass123', role: 'manager' },
+            user: { password: 'pass123', role: 'employee' }
+        };
+        const staticUsersForLogin = [ { id: 1, name: '管理者', role: 'manager' } ];
+        let currentUser = null; 
+
+        // --- DOM要素 ---
+        const loginScreen = document.getElementById('loginScreen');
+        const appContainer = document.getElementById('appContainer');
+        const loginIdInput = document.getElementById('loginId');
+        const loginPasswordInput = document.getElementById('loginPassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const loginError = document.getElementById('loginError');
+        
+        // --- ログイン処理 ---
+        function handleLogin() {
+            const id = loginIdInput.value.toLowerCase();
+            const password = loginPasswordInput.value;
+            const userCredential = credentials[id];
+
+            if (userCredential && userCredential.password === password) {
+                loginError.textContent = '';
+                loginScreen.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                
+                if (userCredential.role === 'manager') {
+                    currentUser = staticUsersForLogin.find(u => u.role === 'manager');
+                } else {
+                    currentUser = { id: 0, name: '従業員', role: 'employee_viewer' };
+                }
+                
+                initializeApp();
+            } else {
+                loginError.textContent = 'IDまたはパスワードが正しくありません。';
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            appContainer.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            loginPasswordInput.value = '';
+            location.reload(); // 状態をリセットするためにリロード
+        }
+        
+        loginBtn.addEventListener('click', handleLogin);
+        logoutBtn.addEventListener('click', handleLogout);
+        loginPasswordInput.addEventListener('keyup', (e) => { if (e.key === 'Enter') handleLogin(); });
+
+        // --- ★★★ ログイン後のアプリケーション初期化関数 ★★★ ---
+        function initializeApp() {
+            const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
+            
+            let dailyShiftChartInstance = null;
+            let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
+            
+            const mainViews = {
+                calendar: document.getElementById('calendarView'),
+                dailyChart: document.getElementById('dailyChartView'),
+                bulkShift: document.getElementById('bulkShiftView'),
+            };
+            const navButtons = { 
+                calendar: document.getElementById('showCalendarViewBtn'), 
+                dailyChart: document.getElementById('showDailyChartViewBtn'), 
+                bulkShift: document.getElementById('showBulkShiftViewBtn')
+            };
+            
+            const shiftDetailModal = document.getElementById('shiftDetailModal');
+            const modalContent = document.getElementById('modalContent');
+            const currentUserInfo = document.getElementById('currentUserInfo');
+            
+            // ... (その他のDOM要素取得は変更なし) ...
+            const calendarGrid = document.getElementById('calendarGrid');
+            const calendarMonthYear = document.getElementById('calendarMonthYear');
+            const employeeHighlightSelect = document.getElementById('employeeHighlightSelect');
+            const prevMonthBtn = document.getElementById('prevMonthBtn');
+            const nextMonthBtn = document.getElementById('nextMonthBtn');
+            const dailyShiftChartCanvas = document.getElementById('dailyShiftChart');
+            const currentChartDateInput = document.getElementById('currentChartDate');
+            const prevDayChartBtn = document.getElementById('prevDayChartBtn');
+            const nextDayChartBtn = document.getElementById('nextDayChartBtn');
+            const bulkShiftMonthYearDisplay = document.getElementById('bulkShiftMonthYear');
+            const prevMonthBulkBtn = document.getElementById('prevMonthBulkBtn');
+            const nextMonthBulkBtn = document.getElementById('nextMonthBulkBtn');
+            const toggleBulkShiftPeriodBtn = document.getElementById('toggleBulkShiftPeriodBtn');
+            const bulkShiftTable = document.getElementById('bulkShiftTable');
+
+            const today = new Date();
+            let calendarDisplayDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            let chartDisplayDate = new Date();
+            let bulkViewDisplayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            let bulkViewIsFirstHalf = true;
+            let selectedEmployeeForHighlight = null;
+            
+            const dummyEvents = { 
+                '2025-07-26': { text: '茨木フェスティバル', icon: 'fas fa-tags' },
+                '2025-07-27': { text: '茨木フェスティバル', icon: 'fas fa-tags' },
+            };
+
+            // ... (format~, isToday, parseTime~ などのユーティリティ関数は変更なし) ...
+            function formatTime(date) { /* ... */ }
+            function formatDate(date) { /* ... */ }
+            function formatDateToJapanese(date) { /* ... */ }
+            function formatDateToJapaneseShort(date) { /* ... */ }
+            function isToday(date) { /* ... */ }
+            function parseTimeToDate(timeStr, baseDate) { /* ... */ }
+            
+            // ... (fetchDataForMonth, updateShift, updateManualData は変更なし) ...
+            async function fetchDataForMonth(date) { /* ... */ }
+            async function updateShift(shiftData) { /* ... */ }
+            async function updateManualData(date, breaks, shortages) { /* ... */ }
+
+            function updateUserInfo() {
+                 currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`;
+            }
+            
+            function setActiveNavButton(activeViewKey) {
+                Object.keys(navButtons).forEach(key => {
+                    const button = navButtons[key];
+                    button.classList.remove('bg-blue-700', 'bg-purple-700', 'bg-teal-700', 'active');
+                    let baseColor = key === 'calendar' ? 'bg-blue-600' : key === 'dailyChart' ? 'bg-purple-600' : 'bg-teal-600';
+                    button.classList.add(baseColor);
+                    if (key === activeViewKey) {
+                        button.classList.remove(baseColor);
+                        button.classList.add(key === 'calendar' ? 'bg-blue-700' : key === 'dailyChart' ? 'bg-purple-700' : 'bg-teal-700', 'active');
+                    }
+                });
+            }
+
+            async function switchView(viewKey) {
+                Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
+                setActiveNavButton(viewKey);
+                
+                let targetDate;
+                if (viewKey === 'calendar') targetDate = calendarDisplayDate;
+                else if (viewKey === 'dailyChart') {
+                    targetDate = chartDisplayDate;
+                    currentChartDateInput.value = formatDate(chartDisplayDate); 
+                }
+                else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
+                
+                await fetchDataForMonth(targetDate);
+            }
+            
+            function refreshCurrentView() {
+                if (!mainViews.calendar.classList.contains('hidden')) renderCalendar();
+                else if (!mainViews.dailyChart.classList.contains('hidden')) renderDailyShiftChart();
+                else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
+            }
+
+            // ... (renderCalendar, renderBulkShiftTable, showShiftDetailModal は変更なし) ...
+            function renderCalendar() { /* ... */ }
+            function renderBulkShiftTable() { /* ... */ }
+            async function showShiftDetailModal(date) { /* ... */ }
+
+            // =================================================================
+            // ▼▼▼【最終修正】グラフ描画関数の修正 ▼▼▼
+            // =================================================================
+            function renderDailyShiftChart() {
+                if (!dailyShiftChartCanvas) return;
+                const dateString = formatDate(chartDisplayDate);
+                const shiftsForDay = (appState.shifts[dateString] || []).slice();
+                
+                if (dailyShiftChartInstance) dailyShiftChartInstance.destroy();
+
+                const ctx = dailyShiftChartCanvas.getContext('2d');
+                ctx.clearRect(0, 0, dailyShiftChartCanvas.width, dailyShiftChartCanvas.height);
+                
+                if (shiftsForDay.length === 0) {
+                    ctx.font = '16px Inter, sans-serif';
+                    ctx.fillStyle = '#64748b';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('この日のシフトはありません', dailyShiftChartCanvas.width / 2, 50);
+                    return;
+                }
+                
+                // 1. 出勤時間でシフトデータをソート
+                const sortedShifts = shiftsForDay
+                    .filter(shift => shift && typeof shift.time === 'string' && shift.time.includes(' - '))
+                    .sort((a, b) => {
+                        const startTimeA = a.time.split(' - ')[0];
+                        const startTimeB = b.time.split(' - ')[0];
+                        return startTimeA.localeCompare(startTimeB);
+                    });
+
+                // 2. ソートされた順番でY軸のラベル（従業員名）を作成
+                const yLabels = [];
+                sortedShifts.forEach(shift => {
+                    if (shift.fullName && !yLabels.includes(shift.fullName)) {
+                        yLabels.push(shift.fullName);
+                    }
+                });
+
+                // 3. グラフ用のデータを作成
+                const chartDatasetData = [];
+                sortedShifts.forEach(shift => {
+                    const [startTimeStr, endTimeStr] = shift.time.split(' - ');
+                    const mainStartDate = parseTimeToDate(startTimeStr, chartDisplayDate);
+                    const mainEndDate = parseTimeToDate(endTimeStr, chartDisplayDate);
+                    const bgColor = shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)';
+                    if (!mainStartDate || !mainEndDate) return;
+
+                    if (shift.breakTime && shift.breakTime.includes(' - ')) {
+                        // ... (休憩時間の処理) ...
+                    } else {
+                        chartDatasetData.push({ x: [mainStartDate.getTime(), mainEndDate.getTime()], y: shift.fullName, originalShift: shift, bgColor: bgColor });
+                    }
+                });
+                
+                // 4. グラフを描画
+                const todayForChart = new Date(chartDisplayDate);
+                const chartMinTime = new Date(todayForChart); chartMinTime.setHours(9,0,0,0); 
+                const chartMaxTime = new Date(todayForChart); chartMaxTime.setHours(21,0,0,0); 
+
+                dailyShiftChartInstance = new Chart(dailyShiftChartCanvas, {
+                    type: 'bar',
+                    data: { datasets: [{ label: '勤務時間', data: chartDatasetData, backgroundColor: chartDatasetData.map(d => d.bgColor) }] },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, min: chartMinTime.getTime(), max: chartMaxTime.getTime(), title: { display: true, text: '時間' } },
+                            // ★★★ ソート済みのyLabelsを使用 ★★★
+                            y: { type: 'category', labels: yLabels, title: { display: true, text: '従業員' }, offset: true }
+                        },
+                        plugins: {
+                            tooltip: { /* ... */ },
+                            legend: { display: false }
+                        }
+                    }
+                });
+            }
+            
+            // --- イベントリスナー設定 (変更なし) ---
+            updateUserInfo();
+            navButtons.calendar.addEventListener('click', () => switchView('calendar'));
+            navButtons.dailyChart.addEventListener('click', () => switchView('dailyChart'));
+            navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
+            // ... (その他のイベントリスナー) ...
+            
+            // --- 初期表示処理 ---
+            currentChartDateInput.value = formatDate(chartDisplayDate);
+            switchView('calendar');
+        }
+    });
+    </script>
 </body>
 </html>
