@@ -8,8 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <link rel="icon" href="img/icon.png" type="image/png">
-    <link rel="apple-touch-icon" href="img/icon.png">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
         .calendar-day { border: 1px solid #e2e8f0; padding: 8px; min-height: 100px; position: relative; background-color: white; border-radius: 0.375rem; cursor: pointer; transition: all 0.2s ease-in-out; }
@@ -21,9 +19,9 @@
         .today { background-color: #fef2f2; }
         .other-month { background-color: #f8fafc; color: #9ca3af; cursor: default; }
         .other-month:hover { transform: none; box-shadow: none; }
-        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); animation: fadeIn 0.3s; }
+        .modal { display: none; position: fixed; z-index: 50; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); align-items: center; justify-content: center; animation: fadeIn 0.3s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .modal-content { background-color: #fefefe; margin: 5% auto; padding: 24px; width: 90%; max-width: 650px; border-radius: 0.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); }
+        .modal-content { background-color: #fefefe; padding: 24px; width: 90%; max-width: 650px; border-radius: 0.5rem; box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1); }
         .delete-shift-btn { background-color: #ef4444; color: white; padding: 2px 6px; font-size: 0.7rem; border-radius: 0.25rem; }
         .delete-shift-btn:hover { background-color: #dc2626; }
         .chart-container { position: relative; width: 100%; max-width: 100%; margin-left: auto; margin-right: auto; height: 400px; max-height: 500px; }
@@ -49,13 +47,13 @@
             <div class="space-y-4">
                 <div>
                     <label for="loginId" class="block text-sm font-medium text-slate-600">ユーザーID</label>
-                    <input type="text" id="loginId" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" value="manager">
+                    <input type="text" id="loginId" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm" value="manager">
                 </div>
                 <div>
                     <label for="loginPassword" class="block text-sm font-medium text-slate-600">パスワード</label>
-                    <input type="password" id="loginPassword" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" value="pass123">
+                    <input type="password" id="loginPassword" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm" value="pass123">
                 </div>
-                <button id="loginBtn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                <button id="loginBtn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
                     ログイン
                 </button>
             </div>
@@ -178,17 +176,11 @@
             const id = loginIdInput.value.toLowerCase();
             const password = loginPasswordInput.value;
             const userCredential = credentials[id];
-
             if (userCredential && userCredential.password === password) {
                 loginError.textContent = '';
                 loginScreen.classList.add('hidden');
                 appContainer.classList.remove('hidden');
-                
-                if (userCredential.role === 'manager') {
-                    currentUser = staticUsersForLogin.find(u => u.role === 'manager');
-                } else {
-                    currentUser = { id: 0, name: '従業員', role: 'employee_viewer' };
-                }
+                currentUser = (userCredential.role === 'manager') ? staticUsersForLogin[0] : { id: 0, name: '従業員', role: 'employee_viewer' };
                 initializeApp();
             } else {
                 loginError.textContent = 'IDまたはパスワードが正しくありません。';
@@ -209,11 +201,10 @@
 
         function initializeApp() {
             const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev'; 
-            
             let dailyShiftChartInstance = null;
             let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
             
-            const mainViews = { calendar: document.getElementById('calendarView'), dailyChart: document.getElementById('dailyChartView'), bulkShift: document.getElementById('bulkShiftView'), };
+            const mainViews = { calendar: document.getElementById('calendarView'), dailyChart: document.getElementById('dailyChartView'), bulkShift: document.getElementById('bulkShiftView') };
             const navButtons = { calendar: document.getElementById('showCalendarViewBtn'), dailyChart: document.getElementById('showDailyChartViewBtn'), bulkShift: document.getElementById('showBulkShiftViewBtn') };
             const shiftDetailModal = document.getElementById('shiftDetailModal');
             const modalContent = document.getElementById('modalContent');
@@ -241,8 +232,7 @@
             let bulkViewDisplayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
             let bulkViewIsFirstHalf = true;
             let selectedEmployeeForHighlight = null;
-            
-            const dummyEvents = { '2025-07-26': { text: '茨木フェスティバル', icon: 'fas fa-tags' }, '2025-07-27': { text: '茨木フェスティバル', icon: 'fas fa-tags' }, };
+            const dummyEvents = { '2025-07-26': { text: '茨木フェスティバル', icon: 'fas fa-tags' } };
 
             function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
             function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
@@ -257,41 +247,45 @@
                 return date;
             }
             
+            // ▼▼▼【最終修正】データ取得ロジックの改善 ▼▼▼
             async function fetchDataForMonth(date) {
                 const year = date.getFullYear();
                 const month = ('0' + (date.getMonth() + 1)).slice(-2);
-                try {
-                    const response = await fetch(`${API_BASE_URL}/api/data?month=${year}-${month}`);
-                    if (!response.ok) { throw new Error(`API Error`); }
-                    const data = await response.json();
-                    
-                    appState.users = data.users || [];
-                    const monthKey = `${year}-${month}`;
-                    Object.keys(appState.shifts).forEach(key => { if (key.startsWith(monthKey)) delete appState.shifts[key]; });
-                    Object.keys(appState.manualBreaks).forEach(key => { if (key.startsWith(monthKey)) delete appState.manualBreaks[key]; });
-                    Object.keys(appState.manualShortages).forEach(key => { if (key.startsWith(monthKey)) delete appState.manualShortages[key]; });
-
-                    appState.shifts = { ...appState.shifts, ...data.shifts };
-                    appState.manualBreaks = { ...appState.manualBreaks, ...data.manualBreaks };
-                    appState.manualShortages = { ...appState.manualShortages, ...data.manualShortages };
-                    
-                    updateUserInfo();
-                    refreshCurrentView();
-                } catch (error) { console.error("データ取得エラー:", error); alert("APIサーバーへの接続に失敗しました。"); }
+                
+                // 新しい月のデータを取得する前に、古い月のデータが残らないようにする
+                // これにより、月をまたいだ時のデータ不整合を防ぐ
+                const monthKey = `${year}-${month}`;
+                if (!appState.shifts[monthKey + '-01']) { // その月のデータがなければ取得
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/data?month=${year}-${month}`);
+                        if (!response.ok) throw new Error('API Error');
+                        const data = await response.json();
+                        
+                        appState.users = data.users || [];
+                        // 新しい月のデータで上書きする
+                        appState.shifts = { ...appState.shifts, ...data.shifts };
+                        appState.manualBreaks = { ...appState.manualBreaks, ...data.manualBreaks };
+                        appState.manualShortages = { ...appState.manualShortages, ...data.manualShortages };
+                    } catch (error) {
+                        console.error("データ取得エラー:", error);
+                        alert("APIサーバーへの接続に失敗しました。");
+                    }
+                }
+                
+                // データを取得した後、必ずUIを更新
+                updateUserInfo();
+                refreshCurrentView();
             }
 
             async function updateShift(shiftData) { /* (変更なし) */ }
             async function updateManualData(date, breaks, shortages) { /* (変更なし) */ }
-
             function updateUserInfo() { currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`; }
             
             function setActiveNavButton(activeViewKey) {
                 Object.keys(navButtons).forEach(key => {
                     const button = navButtons[key];
                     button.classList.remove('active');
-                    if (key === activeViewKey) {
-                        button.classList.add('active');
-                    }
+                    if (key === activeViewKey) button.classList.add('active');
                 });
             }
 
@@ -299,7 +293,7 @@
                 Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
                 setActiveNavButton(viewKey);
                 
-                let targetDate = new Date();
+                let targetDate;
                 if (viewKey === 'calendar') targetDate = calendarDisplayDate;
                 else if (viewKey === 'dailyChart') targetDate = chartDisplayDate;
                 else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
@@ -320,10 +314,9 @@
                 const month = calendarDisplayDate.getMonth();
                 calendarMonthYear.textContent = `${year}年 ${month + 1}月`;
                 
-                const currentSelected = employeeHighlightSelect.value;
                 employeeHighlightSelect.innerHTML = `<option value="">全員表示</option>` + appState.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
-                employeeHighlightSelect.value = currentSelected;
-                
+                if (selectedEmployeeForHighlight) employeeHighlightSelect.value = selectedEmployeeForHighlight;
+
                 const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
                 const startDayOfWeek = new Date(year, month, 1).getDay();
 
@@ -351,7 +344,7 @@
                     calendarGrid.appendChild(dayCell);
                 }
             }
-
+            
             function renderDailyShiftChart() {
                 if (!dailyShiftChartCanvas) return;
                 const dateString = formatDate(chartDisplayDate);
@@ -362,9 +355,7 @@
                 ctx.clearRect(0, 0, dailyShiftChartCanvas.width, dailyShiftChartCanvas.height);
                 
                 if (shiftsForDay.length === 0) {
-                    ctx.font = '16px Inter, sans-serif';
-                    ctx.fillStyle = '#64748b';
-                    ctx.textAlign = 'center';
+                    ctx.font = '16px Inter, sans-serif'; ctx.fillStyle = '#64748b'; ctx.textAlign = 'center';
                     ctx.fillText('この日のシフトはありません', dailyShiftChartCanvas.width / 2, 50);
                     return;
                 }
@@ -374,9 +365,7 @@
                     .sort((a, b) => a.time.split(' - ')[0].localeCompare(b.time.split(' - ')[0]));
 
                 const yLabels = [];
-                sortedShifts.forEach(shift => {
-                    if (shift.fullName && !yLabels.includes(shift.fullName)) { yLabels.push(shift.fullName); }
-                });
+                sortedShifts.forEach(shift => { if (shift.fullName && !yLabels.includes(shift.fullName)) yLabels.push(shift.fullName); });
 
                 const chartDatasetData = [];
                 sortedShifts.forEach(shift => {
@@ -400,9 +389,7 @@
                             x: { type: 'time', time: { unit: 'hour', displayFormats: { hour: 'HH:mm' } }, min: chartMinTime.getTime(), max: chartMaxTime.getTime(), title: { display: true, text: '時間' } },
                             y: { type: 'category', labels: yLabels, title: { display: true, text: '従業員' }, offset: true }
                         },
-                        plugins: {
-                            tooltip: { /* (変更なし) */ }, legend: { display: false }
-                        }
+                        plugins: { legend: { display: false } }
                     }
                 });
             }
@@ -410,17 +397,20 @@
             function renderBulkShiftTable() {
                 const dateHeader = document.getElementById('bulkShiftTableDateHeader');
                 const body = document.getElementById('bulkShiftTableBody');
-                if(!dateHeader || !body) return;
+                const breakRow = document.getElementById('bulkShiftTableBreakTimesRow');
+                const shortageRow = document.getElementById('bulkShiftTableShortageHoursRow');
+                if(!dateHeader || !body || !breakRow || !shortageRow) return;
 
                 dateHeader.innerHTML = '';
                 body.innerHTML = '';
+                breakRow.innerHTML = '';
+                shortageRow.innerHTML = ''; 
 
                 const days = [];
                 let headerHtml = '<th>従業員名</th>';
                 const year = bulkViewDisplayMonth.getFullYear();
                 const month = bulkViewDisplayMonth.getMonth();
                 const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
-                
                 const startDay = bulkViewIsFirstHalf ? 1 : 16;
                 const endDayLoop = bulkViewIsFirstHalf ? 15 : lastDayOfMonth;
 
@@ -433,18 +423,31 @@
                 dateHeader.innerHTML = headerHtml;
                 
                 const displayableUsers = [...appState.users];
-
                 displayableUsers.forEach(user => {
                     let rowHtml = `<tr><th class="font-semibold ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
                         const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
                         let shiftText = shift ? shift.time : "";
-                        rowHtml += `<td><input type="text" value="${shiftText}" data-user-id="${user.id}" data-date="${dateString}" class="w-full"></td>`;
+                        rowHtml += `<td><input type="text" value="${shiftText}" data-user-id="${user.id}" data-date="${dateString}" class="w-full p-1 border rounded"></td>`;
                     });
                     rowHtml += '</tr>';
                     body.innerHTML += rowHtml;
                 });
                 
+                let breakTimesRowHtml = '<tr><th class="font-semibold">休憩</th>'; 
+                days.forEach(dateString => {
+                    const manuallyEnteredBreak = appState.manualBreaks[dateString] || '';
+                    breakTimesRowHtml += `<td><input type="text" class="break-time-input w-full p-1 border rounded" value="${manuallyEnteredBreak}" data-date="${dateString}"></td>`;
+                });
+                breakRow.innerHTML = breakTimesRowHtml;
+
+                let shortageRowHtml = '<tr><th class="font-semibold">不足</th>'; 
+                days.forEach(dateString => {
+                    const manuallyEnteredShortage = appState.manualShortages[dateString] || '';
+                    shortageRowHtml += `<td><input type="text" class="shortage-input w-full p-1 border rounded" value="${manuallyEnteredShortage}" data-date="${dateString}"></td>`;
+                });
+                shortageRow.innerHTML = shortageRowHtml;
+
                 document.getElementById('bulkShiftMonthYear').textContent = `${bulkViewDisplayMonth.getFullYear()}年 ${bulkViewDisplayMonth.getMonth() + 1}月`;
                 document.getElementById('toggleBulkShiftPeriodBtn').textContent = bulkViewIsFirstHalf ? '前半 (1-15日)' : `後半 (16-${lastDayOfMonth}日)`;
             }
@@ -456,25 +459,14 @@
             navButtons.calendar.addEventListener('click', () => switchView('calendar'));
             navButtons.dailyChart.addEventListener('click', () => switchView('dailyChart'));
             navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
-
-            // ▼▼▼【最終修正】日付表示の更新処理を追加 ▼▼▼
-            prevDayChartBtn.addEventListener('click', async () => { 
-                chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); 
-                currentChartDateInput.value = formatDate(chartDisplayDate); // 表示を更新
-                await fetchDataForMonth(chartDisplayDate); 
-            });
-            nextDayChartBtn.addEventListener('click', async () => { 
-                chartDisplayDate.setDate(chartDisplayDate.getDate() + 1);
-                currentChartDateInput.value = formatDate(chartDisplayDate); // 表示を更新
-                await fetchDataForMonth(chartDisplayDate); 
-            });
-
-            prevMonthBtn.addEventListener('click', async () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); await fetchDataForMonth(calendarDisplayDate); });
-            nextMonthBtn.addEventListener('click', async () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); await fetchDataForMonth(calendarDisplayDate); });
+            prevMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); fetchDataForMonth(calendarDisplayDate); });
+            nextMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); fetchDataForMonth(calendarDisplayDate); });
             employeeHighlightSelect.addEventListener('change', (e) => { selectedEmployeeForHighlight = e.target.value; renderCalendar(); });
-            currentChartDateInput.addEventListener('change', async (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); await fetchDataForMonth(chartDisplayDate); });
-            prevMonthBulkBtn.addEventListener('click', async () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); await fetchDataForMonth(bulkViewDisplayMonth); });
-            nextMonthBulkBtn.addEventListener('click', async () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); await fetchDataForMonth(bulkViewDisplayMonth); });
+            prevDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); currentChartDateInput.value = formatDate(chartDisplayDate); fetchDataForMonth(chartDisplayDate); });
+            nextDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); currentChartDateInput.value = formatDate(chartDisplayDate); fetchDataForMonth(chartDisplayDate); });
+            currentChartDateInput.addEventListener('change', (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); fetchDataForMonth(chartDisplayDate); });
+            prevMonthBulkBtn.addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); fetchDataForMonth(bulkViewDisplayMonth); });
+            nextMonthBulkBtn.addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); fetchDataForMonth(bulkViewDisplayMonth); });
             toggleBulkShiftPeriodBtn.addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
             shiftDetailModal.addEventListener('click', (event) => { if (event.target === shiftDetailModal) shiftDetailModal.style.display = 'none'; });
             
