@@ -20,7 +20,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalContent = document.getElementById('modalContent');
     const roleSwitcher = document.getElementById('roleSwitcher');
     const currentUserInfo = document.getElementById('currentUserInfo');
-    document.getElementById('currentYear').textContent = new Date().getFullYear();
+    if (document.getElementById('currentYear')) {
+        document.getElementById('currentYear').textContent = new Date().getFullYear();
+    }
     const calendarGrid = document.getElementById('calendarGrid');
     const calendarMonthYear = document.getElementById('calendarMonthYear');
     const employeeHighlightSelect = document.getElementById('employeeHighlightSelect');
@@ -45,18 +47,18 @@ document.addEventListener('DOMContentLoaded', function() {
     let bulkViewIsFirstHalf = true;
     let selectedEmployeeForHighlight = null;
     const EMPLOYEE_VIEW_ID = 0;
-
-    // --- メインの描画関数 ---
+    
+    /**
+     * 日別グラフを描画する関数
+     */
     function renderDailyShiftChart() {
-        console.log("✅ renderDailyShiftChart() が呼び出されました。");
         try {
-            if (!dailyShiftChartCanvas) {
-                console.error("致命的エラー: グラフのキャンバス要素が見つかりません。");
-                return;
-            }
+            if (!dailyShiftChartCanvas) return;
+
             const dateString = formatDate(chartDisplayDate);
             const shiftsForDay = (appState.shifts[dateString] || []).slice();
-            
+
+            // 出勤時間でシフトを並び替え
             const sortedShifts = shiftsForDay
                 .filter(shift => shift && typeof shift.time === 'string' && shift.time.includes(' - '))
                 .sort((a, b) => {
@@ -65,6 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     return startTimeA.localeCompare(startTimeB);
                 });
             
+            // Y軸ラベルとグラフデータを作成
             const yLabels = [];
             sortedShifts.forEach(shift => {
                 if (!yLabels.includes(shift.fullName)) {
@@ -72,23 +75,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            console.log("グラフのY軸の最終的な順番:", yLabels);
-
             const chartDatasetData = [];
             sortedShifts.forEach(shift => {
                 const [startTimeStr, endTimeStr] = shift.time.split(' - ');
                 const mainStartDate = parseTimeToDate(startTimeStr, chartDisplayDate);
                 const mainEndDate = parseTimeToDate(endTimeStr, chartDisplayDate);
                 if (!mainStartDate || !mainEndDate) return;
-
+                
                 const bgColor = shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)';
-                chartDatasetData.push({ x: [mainStartDate.getTime(), mainEndDate.getTime()], y: shift.fullName, originalShift: shift, bgColor: bgColor });
+                
+                chartDatasetData.push({ 
+                    x: [mainStartDate.getTime(), mainEndDate.getTime()], 
+                    y: shift.fullName, 
+                    originalShift: shift, // 元データを保持
+                    bgColor: bgColor 
+                });
             });
 
-            if (dailyShiftChartInstance) dailyShiftChartInstance.destroy();
-
-            const chartMinTime = new Date(chartDisplayDate); chartMinTime.setHours(9, 0, 0, 0);
-            const chartMaxTime = new Date(chartDisplayDate); chartMaxTime.setHours(21, 0, 0, 0);
+            if (dailyShiftChartInstance) {
+                dailyShiftChartInstance.destroy();
+            }
+            
+            const chartMinTime = new Date(chartDisplayDate); chartMinTime.setHours(9,0,0,0);
+            const chartMaxTime = new Date(chartDisplayDate); chartMaxTime.setHours(21,0,0,0);
 
             dailyShiftChartInstance = new Chart(dailyShiftChartCanvas, {
                 type: 'bar',
@@ -101,6 +110,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 options: {
                     indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
                         y: { type: 'category', labels: yLabels, offset: true, title: { display: true, text: '従業員' } },
                         x: { type: 'time', min: chartMinTime.getTime(), max: chartMaxTime.getTime(), time: { unit: 'hour', displayFormats: { hour: 'H時' } }, title: { display: true, text: '時間' } }
@@ -108,12 +119,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     plugins: { 
                         legend: { display: false },
                         tooltip: {
-                            callbacks: {
+                             callbacks: {
                                 label: function(context) {
-                                    const dp = context.dataset.data[context.dataIndex]; const os = dp.originalShift;
-                                    let l = `${formatTime(new Date(context.raw[0]))} - ${formatTime(new Date(context.raw[1]))}`;
-                                    if (os.notes) l += ` (備考: ${os.notes})`; if (os.breakTime) l += ` (休憩: ${os.breakTime})`;
-                                    return l;
+                                    const raw = context.raw;
+                                    const shift = raw.originalShift;
+                                    let label = `${formatTime(new Date(raw.x[0]))} - ${formatTime(new Date(raw.x[1]))}`;
+                                    if (shift.notes) label += ` (備考: ${shift.notes})`;
+                                    if (shift.breakTime) label += ` (休憩: ${shift.breakTime})`;
+                                    return label;
                                 }
                             }
                         }
@@ -121,26 +134,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         } catch (error) {
-            console.error("renderDailyShiftChart 関数内でエラーが発生:", error);
+            console.error("グラフ描画中にエラー:", error);
         }
     }
 
-    // --- データ取得・更新 ---
-    async function fetchDataForMonth(date) { /* ... 省略 (変更なし) ... */ }
+    // --- データとUIの状態を更新する関数 ---
+    async function fetchDataForMonth(date) { /* ... 既存のコード ... */ }
     function refreshCurrentView() {
-        try {
-            if (!mainViews.calendar.classList.contains('hidden')) renderCalendar();
-            else if (!mainViews.dailyChart.classList.contains('hidden')) renderDailyShiftChart();
-            else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
-        } catch(e) { console.error("refreshCurrentViewでエラー:", e)}
+        if (!mainViews.calendar.classList.contains('hidden')) renderCalendar();
+        else if (!mainViews.dailyChart.classList.contains('hidden')) renderDailyShiftChart();
+        else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
     }
-    async function switchView(viewKey) { /* ... 省略 (変更なし) ... */ }
-
-    // --- ユーティリティ関数群 (変更なし) ---
-    function renderCalendar() { /* ... */ }
-    function renderBulkShiftTable() { /* ... */ }
-    function showShiftDetailModal(date) { /* ... */ }
-    function setActiveNavButton(activeViewKey) { /* ... */ }
+    async function switchView(viewKey) {
+        Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
+        setActiveNavButton(viewKey);
+        
+        let targetDate = new Date();
+        if (viewKey === 'dailyChart') targetDate = chartDisplayDate;
+        else if (viewKey === 'calendar') targetDate = calendarDisplayDate;
+        else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
+        
+        await fetchDataForMonth(targetDate);
+    }
+    
+    // --- ユーティリティとその他の描画関数 ---
     function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
     function parseTimeToDate(timeStr, baseDate) {
         if (!timeStr || !timeStr.includes(':')) return null;
@@ -150,27 +167,21 @@ document.addEventListener('DOMContentLoaded', function() {
         return date;
     }
     function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
-    function initializeUser() {
-      const manager = appState.users.find(u => u.role === 'manager');
-      currentUser = manager || { id: EMPLOYEE_VIEW_ID, name: '従業員ビュー', role: 'employee_viewer' };
+    function setActiveNavButton(activeViewKey) {
+        Object.values(navButtons).forEach(btn => btn.classList.remove('active'));
+        if (navButtons[activeViewKey]) navButtons[activeViewKey].classList.add('active');
     }
+    function initializeUser() { /* ... 既存のコード ... */ }
+    function renderCalendar() { /* ... 既存のコード ... */ }
+    function renderBulkShiftTable() { /* ... 既存のコード ... */ }
+    function showShiftDetailModal(date) { /* ... 既存のコード ... */ }
+
 
     // --- アプリケーション初期化 ---
     async function initializeApp() {
-        console.log("initializeApp() を開始します。");
-        
-        // ▼▼▼ ここが最重要の確認ポイントです ▼▼▼
         if (navButtons.dailyChart) {
-            navButtons.dailyChart.addEventListener('click', () => {
-                console.log("🖱️ 「日別グラフ表示」ボタンがクリックされました！");
-                switchView('dailyChart');
-            });
-        } else {
-            console.error("致命的エラー: 「日別グラフ表示」ボタン(id='showDailyChartViewBtn')が見つかりません。");
+            navButtons.dailyChart.addEventListener('click', () => switchView('dailyChart'));
         }
-        // ▲▲▲ ▲▲▲ ▲▲▲
-
-        // 他のボタンのイベントリスナー
         if (navButtons.calendar) {
             navButtons.calendar.addEventListener('click', () => switchView('calendar'));
         }
@@ -178,11 +189,11 @@ document.addEventListener('DOMContentLoaded', function() {
             navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
         }
 
-        // その他の初期化処理...
+        // その他のイベントリスナー...
+        
         currentChartDateInput.value = formatDate(chartDisplayDate);
         await fetchDataForMonth(firstDayOfCurrentMonth);
         switchView('calendar');
-        console.log("アプリケーションの初期化が完了しました。");
     }
 
     initializeApp();
