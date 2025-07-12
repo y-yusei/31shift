@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
+    console.log("✅ script.jsが読み込まれ、実行が開始されました。");
+
     // --- グローバル変数と設定 ---
     const API_BASE_URL = 'https://my-shift-backend.tamago-2483.workers.dev';
     let dailyShiftChartInstance = null;
@@ -48,9 +50,19 @@ document.addEventListener('DOMContentLoaded', function() {
     let selectedEmployeeForHighlight = null;
     const EMPLOYEE_VIEW_ID = 0;
     
-    /**
-     * 日別グラフを描画する関数
-     */
+    // --- ユーティリティ関数 ---
+    function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
+    function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
+    function parseTimeToDate(timeStr, baseDate) {
+        if (!timeStr || !timeStr.includes(':')) return null;
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const date = new Date(baseDate);
+        date.setHours(hours, minutes, 0, 0);
+        return date;
+    }
+
+    // --- 主要な描画関数 ---
+
     function renderDailyShiftChart() {
         try {
             if (!dailyShiftChartCanvas) return;
@@ -58,7 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const dateString = formatDate(chartDisplayDate);
             const shiftsForDay = (appState.shifts[dateString] || []).slice();
 
-            // 出勤時間でシフトを並び替え
+            // ▼▼▼【並び替え処理】▼▼▼
             const sortedShifts = shiftsForDay
                 .filter(shift => shift && typeof shift.time === 'string' && shift.time.includes(' - '))
                 .sort((a, b) => {
@@ -67,7 +79,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     return startTimeA.localeCompare(startTimeB);
                 });
             
-            // Y軸ラベルとグラフデータを作成
             const yLabels = [];
             sortedShifts.forEach(shift => {
                 if (!yLabels.includes(shift.fullName)) {
@@ -87,7 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 chartDatasetData.push({ 
                     x: [mainStartDate.getTime(), mainEndDate.getTime()], 
                     y: shift.fullName, 
-                    originalShift: shift, // 元データを保持
+                    originalShift: shift,
                     bgColor: bgColor 
                 });
             });
@@ -138,44 +149,29 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- データとUIの状態を更新する関数 ---
-    async function fetchDataForMonth(date) { /* ... 既存のコード ... */ }
-    function refreshCurrentView() {
-        if (!mainViews.calendar.classList.contains('hidden')) renderCalendar();
-        else if (!mainViews.dailyChart.classList.contains('hidden')) renderDailyShiftChart();
-        else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
-    }
+    // --- 他の関数（ここでは省略しますが、実際にはコードが必要です） ---
+    function renderCalendar() { /* ... 元のコード ... */ }
+    function renderBulkShiftTable() { /* ... 元のコード ... */ }
+    function showShiftDetailModal(date) { /* ... 元のコード ... */ }
+    async function fetchDataForMonth(date) { /* ... 元のコード ... */ }
+    function setActiveNavButton(activeViewKey) { /* ... 元のコード ... */ }
+    function initializeUser() { /* ... 元のコード ... */ }
     async function switchView(viewKey) {
-        Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
+        Object.keys(mainViews).forEach(key => {
+            if (mainViews[key]) mainViews[key].classList.toggle('hidden', key !== viewKey);
+        });
         setActiveNavButton(viewKey);
-        
-        let targetDate = new Date();
-        if (viewKey === 'dailyChart') targetDate = chartDisplayDate;
-        else if (viewKey === 'calendar') targetDate = calendarDisplayDate;
-        else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
-        
-        await fetchDataForMonth(targetDate);
+        await fetchDataForMonth(chartDisplayDate);
     }
-    
-    // --- ユーティリティとその他の描画関数 ---
-    function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
-    function parseTimeToDate(timeStr, baseDate) {
-        if (!timeStr || !timeStr.includes(':')) return null;
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        const date = new Date(baseDate);
-        date.setHours(hours, minutes, 0, 0);
-        return date;
+    function refreshCurrentView() {
+        if (mainViews.dailyChart && !mainViews.dailyChart.classList.contains('hidden')) {
+            renderDailyShiftChart();
+        } else if (mainViews.calendar && !mainViews.calendar.classList.contains('hidden')) {
+            renderCalendar();
+        } else if (mainViews.bulkShift && !mainViews.bulkShift.classList.contains('hidden')) {
+            renderBulkShiftTable();
+        }
     }
-    function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
-    function setActiveNavButton(activeViewKey) {
-        Object.values(navButtons).forEach(btn => btn.classList.remove('active'));
-        if (navButtons[activeViewKey]) navButtons[activeViewKey].classList.add('active');
-    }
-    function initializeUser() { /* ... 既存のコード ... */ }
-    function renderCalendar() { /* ... 既存のコード ... */ }
-    function renderBulkShiftTable() { /* ... 既存のコード ... */ }
-    function showShiftDetailModal(date) { /* ... 既存のコード ... */ }
-
 
     // --- アプリケーション初期化 ---
     async function initializeApp() {
@@ -188,10 +184,16 @@ document.addEventListener('DOMContentLoaded', function() {
         if (navButtons.bulkShift) {
             navButtons.bulkShift.addEventListener('click', () => switchView('bulkShift'));
         }
-
-        // その他のイベントリスナー...
         
-        currentChartDateInput.value = formatDate(chartDisplayDate);
+        if(currentChartDateInput) {
+            currentChartDateInput.value = formatDate(chartDisplayDate);
+            currentChartDateInput.addEventListener('change', async (e) => { 
+                chartDisplayDate = new Date(e.target.value + "T00:00:00"); 
+                await fetchDataForMonth(chartDisplayDate); 
+            });
+        }
+
+        // 初回ロード
         await fetchDataForMonth(firstDayOfCurrentMonth);
         switchView('calendar');
     }
