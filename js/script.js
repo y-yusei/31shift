@@ -18,7 +18,13 @@ document.addEventListener('DOMContentLoaded', function() {
         dailyChart: document.getElementById('showDailyChartViewBtn'),
         bulkShift: document.getElementById('showBulkShiftViewBtn')
     };
+    const calendarGrid = document.getElementById('calendarGrid');
+    const calendarMonthYear = document.getElementById('calendarMonthYear');
+    const prevMonthBtn = document.getElementById('prevMonthBtn');
+    const nextMonthBtn = document.getElementById('nextMonthBtn');
     const currentChartDateInput = document.getElementById('currentChartDate');
+    const prevDayChartBtn = document.getElementById('prevDayChartBtn');
+    const nextDayChartBtn = document.getElementById('nextDayChartBtn');
     const dailyShiftChartCanvas = document.getElementById('dailyShiftChart');
     
     // --- 状態管理用変数 ---
@@ -29,6 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // --- ユーティリティ関数 ---
     function formatDate(date) { return `${date.getFullYear()}-${('0' + (date.getMonth() + 1)).slice(-2)}-${('0' + date.getDate()).slice(-2)}`; }
     function formatTime(date) { return `${('0' + date.getHours()).slice(-2)}:${('0' + date.getMinutes()).slice(-2)}`; }
+    function isToday(date) { const today = new Date(); return date.toDateString() === today.toDateString(); }
     function parseTimeToDate(timeStr, baseDate) {
         if (!timeStr || !timeStr.includes(':')) return null;
         const [hours, minutes] = timeStr.split(':').map(Number);
@@ -36,8 +43,62 @@ document.addEventListener('DOMContentLoaded', function() {
         date.setHours(hours, minutes, 0, 0);
         return date;
     }
-    
+
+    // --- データ取得 ---
+    async function fetchDataForMonth(date) {
+        const year = date.getFullYear();
+        const month = ('0' + (date.getMonth() + 1)).slice(-2);
+        const url = `${API_BASE_URL}/api/data?month=${year}-${month}`;
+        
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('APIからのデータ取得に失敗しました。');
+            
+            const data = await response.json();
+            appState.users = data.users || [];
+            appState.shifts = { ...appState.shifts, ...(data.shifts || {}) };
+            
+            if (!currentUser && appState.users.length > 0) {
+                // ユーザー初期化（今回は簡略化）
+                currentUser = appState.users[0];
+            }
+            refreshCurrentView();
+        } catch (error) {
+            console.error("fetchDataForMonthでエラー:", error);
+        }
+    }
+
     // --- 主要な描画関数 ---
+
+    function renderCalendar() {
+        if (!calendarGrid || !calendarMonthYear) return;
+
+        calendarGrid.innerHTML = '';
+        const year = calendarDisplayDate.getFullYear();
+        const month = calendarDisplayDate.getMonth();
+        calendarMonthYear.textContent = `${year}年 ${month + 1}月`;
+        
+        const firstDayOfMonth = new Date(year, month, 1).getDay();
+        const lastDateOfMonth = new Date(year, month + 1, 0).getDate();
+
+        // 月初の空白マスを埋める
+        for (let i = 0; i < firstDayOfMonth; i++) {
+            calendarGrid.insertAdjacentHTML('beforeend', `<div class="other-month"></div>`);
+        }
+
+        // 日付マスを生成
+        for (let day = 1; day <= lastDateOfMonth; day++) {
+            const date = new Date(year, month, day);
+            const dayCell = document.createElement('div');
+            dayCell.className = 'calendar-day';
+            if (isToday(date)) {
+                dayCell.classList.add('today');
+            }
+            dayCell.innerHTML = `<div>${day}</div>`;
+            // ここにシフト情報を表示するロジックを追加できます
+            calendarGrid.appendChild(dayCell);
+        }
+    }
 
     function renderDailyShiftChart() {
         try {
@@ -88,17 +149,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             dailyShiftChartInstance = new Chart(dailyShiftChartCanvas, {
                 type: 'bar',
-                data: {
-                    datasets: [{
-                        label: '勤務時間',
-                        data: chartDatasetData,
-                        backgroundColor: chartDatasetData.map(d => d.bgColor),
-                    }]
-                },
+                data: { datasets: [{ label: '勤務時間', data: chartDatasetData, backgroundColor: chartDatasetData.map(d => d.bgColor) }] },
                 options: {
-                    indexAxis: 'y',
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                     scales: {
                         y: { type: 'category', labels: yLabels, offset: true, title: { display: true, text: '従業員' } },
                         x: { type: 'time', min: chartMinTime.getTime(), max: chartMaxTime.getTime(), time: { unit: 'hour', displayFormats: { hour: 'H時' } }, title: { display: true, text: '時間' } }
@@ -125,38 +178,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function renderCalendar() {
-        // カレンダーの描画ロジック（今回は省略）
+    function renderBulkShiftTable() {
+        // 一括シフト入力ビューの描画ロジック（今回は省略）
     }
 
-    // --- データ取得とビュー管理 ---
-    async function fetchDataForMonth(date) {
-        const year = date.getFullYear();
-        const month = ('0' + (date.getMonth() + 1)).slice(-2);
-        const url = `${API_BASE_URL}/api/data?month=${year}-${month}`;
-        
-        try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error('APIからのデータ取得に失敗しました。');
-            
-            const data = await response.json();
-            appState.users = data.users || [];
-            appState.shifts = data.shifts || {};
-            
-            if (!currentUser && appState.users.length > 0) {
-                initializeUser();
-            }
-            refreshCurrentView();
-        } catch (error) {
-            console.error("fetchDataForMonthでエラー:", error);
-        }
-    }
-
+    // --- ビュー管理 ---
     function refreshCurrentView() {
         if (mainViews.dailyChart && !mainViews.dailyChart.classList.contains('hidden')) {
             renderDailyShiftChart();
         } else if (mainViews.calendar && !mainViews.calendar.classList.contains('hidden')) {
             renderCalendar();
+        } else if (mainViews.bulkShift && !mainViews.bulkShift.classList.contains('hidden')) {
+            renderBulkShiftTable();
         }
     }
 
@@ -169,26 +202,28 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         await fetchDataForMonth(viewKey === 'dailyChart' ? chartDisplayDate : calendarDisplayDate);
     }
-    
-    function initializeUser() {
-        // ユーザー初期化ロジック（今回は省略）
-    }
-    
+
     // --- アプリケーション初期化 ---
     async function initializeApp() {
+        // ナビゲーションボタンのイベントリスナー
         Object.keys(navButtons).forEach(key => {
             if (navButtons[key]) {
                 navButtons[key].addEventListener('click', () => switchView(key));
             }
         });
-        
+
+        // 日付変更のイベントリスナー
         if(currentChartDateInput) {
             currentChartDateInput.value = formatDate(chartDisplayDate);
-            currentChartDateInput.addEventListener('change', async (e) => { 
+            currentChartDateInput.addEventListener('change', (e) => { 
                 chartDisplayDate = new Date(e.target.value + "T00:00:00"); 
-                await fetchDataForMonth(chartDisplayDate); 
+                fetchDataForMonth(chartDisplayDate); 
             });
         }
+        if(prevDayChartBtn) prevDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); currentChartDateInput.value = formatDate(chartDisplayDate); switchView('dailyChart'); });
+        if(nextDayChartBtn) nextDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); currentChartDateInput.value = formatDate(chartDisplayDate); switchView('dailyChart'); });
+        if(prevMonthBtn) prevMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); switchView('calendar'); });
+        if(nextMonthBtn) nextMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); switchView('calendar'); });
 
         // 初回ロード
         switchView('calendar');
