@@ -90,8 +90,8 @@
                     <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
                         <h2 class="text-2xl font-semibold mb-2 md:mb-0 text-slate-700">イベント・個人シフト</h2>
                          <div class="flex items-center gap-2">
-                             <label for="employeeHighlightSelect" class="text-sm font-medium text-slate-700">従業員ハイライト:</label>
-                             <select id="employeeHighlightSelect" class="p-2 border border-slate-300 rounded-md shadow-sm text-sm"></select>
+                              <label for="employeeHighlightSelect" class="text-sm font-medium text-slate-700">従業員ハイライト:</label>
+                              <select id="employeeHighlightSelect" class="p-2 border border-slate-300 rounded-md shadow-sm text-sm"></select>
                          </div>
                         <div class="flex items-center">
                             <button id="prevMonthBtn" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold py-2 px-4 rounded-lg transition"><i class="fas fa-angle-left mr-1"></i>前月</button>
@@ -238,34 +238,30 @@
                 return d;
             }
             
-            // ▼▼▼【最終修正】データ取得ロジックの改善 ▼▼▼
             async function fetchDataForMonth(date) {
                 const year = date.getFullYear();
                 const month = ('0' + (date.getMonth() + 1)).slice(-2);
                 const monthKey = `${year}-${month}`;
                 
-                // この月のデータが未取得の場合のみAPIを叩く
                 if (!loadedMonths[monthKey]) {
                     try {
                         const response = await fetch(`${API_BASE_URL}/api/data?month=${year}-${month}`);
                         if (!response.ok) throw new Error('API Error');
                         const data = await response.json();
                         
-                        // 取得したデータをappStateに追加
                         appState.users = data.users || [];
                         appState.shifts = { ...appState.shifts, ...data.shifts };
                         appState.manualBreaks = { ...appState.manualBreaks, ...data.manualBreaks };
                         appState.manualShortages = { ...appState.manualShortages, ...data.manualShortages };
                         
-                        loadedMonths[monthKey] = true; // 読み込み済みフラグを立てる
+                        loadedMonths[monthKey] = true;
                     } catch (error) {
                         console.error("データ取得エラー:", error);
                         alert("APIサーバーへの接続に失敗しました。");
-                        return; // エラー時は処理を中断
+                        return;
                     }
                 }
                 
-                // データ取得後（または取得済みの場合）にUIを更新
                 updateUserInfo();
                 refreshCurrentView();
             }
@@ -346,19 +342,32 @@
                     return;
                 }
                 
-                // ▼▼▼【最終修正】並び替えロジックの改善 ▼▼▼
+                // ▼▼▼【ここを修正】並び替えロジックの改善 ▼▼▼
                 const sortedShifts = shiftsForDay
                     .filter(s => s && s.time && s.time.includes(' - '))
                     .sort((a, b) => {
-                        const timeA = parseTimeToDate(a.time.split(' - ')[0], chartDisplayDate);
-                        const timeB = parseTimeToDate(b.time.split(' - ')[0], chartDisplayDate);
-                        if (!timeA) return 1;  // 不正なデータは後ろへ
-                        if (!timeB) return -1; // 不正なデータは後ろへ
-                        return timeA - timeB;   // Dateオブジェクトで比較
+                        const [aStartStr, aEndStr] = a.time.split(' - ');
+                        const [bStartStr, bEndStr] = b.time.split(' - ');
+
+                        const timeA_start = parseTimeToDate(aStartStr, chartDisplayDate);
+                        const timeA_end = parseTimeToDate(aEndStr, chartDisplayDate);
+                        const timeB_start = parseTimeToDate(bStartStr, chartDisplayDate);
+                        const timeB_end = parseTimeToDate(bEndStr, chartDisplayDate);
+
+                        // 不正なデータは末尾に
+                        if (!timeA_start || !timeA_end) return 1;
+                        if (!timeB_start || !timeB_end) return -1;
+
+                        // 1. 出勤時間で比較
+                        if (timeA_start.getTime() !== timeB_start.getTime()) {
+                            return timeA_start - timeB_start;
+                        }
+
+                        // 2. 出勤時間が同じなら、退勤時間で比較
+                        return timeA_end - timeB_end;
                     });
 
-                const yLabels = [];
-                sortedShifts.forEach(s => { if (s.fullName && !yLabels.includes(s.fullName)) yLabels.push(s.fullName); });
+                const yLabels = sortedShifts.map(s => s.fullName).filter((v, i, a) => a.indexOf(v) === i);
 
                 const chartDatasetData = sortedShifts.map(shift => {
                     const [startStr, endStr] = shift.time.split(' - ');
@@ -369,7 +378,7 @@
                         x: [mainStartDate.getTime(), mainEndDate.getTime()], y: shift.fullName, originalShift: shift,
                         bgColor: shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)'
                     };
-                }).filter(Boolean); // nullを除外
+                }).filter(Boolean);
                 
                 const chartMinTime = new Date(chartDisplayDate); chartMinTime.setHours(9,0,0,0); 
                 const chartMaxTime = new Date(chartDisplayDate); chartMaxTime.setHours(21,0,0,0); 
@@ -380,8 +389,33 @@
                     options: {
                         indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                         scales: {
-                            x: { type: 'time', min: chartMinTime.getTime(), max: chartMaxTime.getTime() },
+                            // ▼▼▼【ここを修正】時間表示を24時間形式に ▼▼▼
+                            x: { 
+                                type: 'time', 
+                                min: chartMinTime.getTime(), 
+                                max: chartMaxTime.getTime(),
+                                time: {
+                                    unit: 'hour',
+                                    displayFormats: {
+                                        hour: 'HH:mm' // 24時間表示
+                                    }
+                                },
+                                ticks: {
+                                    stepSize: 1, // 1時間ごとに目盛りを表示
+                                }
+                            },
                             y: { type: 'category', labels: yLabels }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        const start = new Date(context.raw.x[0]);
+                                        const end = new Date(context.raw.x[1]);
+                                        return `${context.raw.originalShift.fullName}: ${formatTime(start)} - ${formatTime(end)}`;
+                                    }
+                                }
+                            }
                         }
                     }
                 });
