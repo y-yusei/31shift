@@ -54,16 +54,21 @@
         }
         h1, h2, h3 { color: var(--text-primary); }
         input, select {
-             background-color: var(--bg-secondary);
-             border-color: var(--border-color);
-             color: var(--text-primary);
-             border-radius: 0.5rem;
+            background-color: var(--bg-secondary);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+            border-radius: 0.5rem;
         }
         input:focus, select:focus {
-             border-color: var(--primary-brand);
-             box-shadow: 0 0 0 2px var(--primary-brand-hover);
-             outline: none;
+            border-color: var(--primary-brand);
+            box-shadow: 0 0 0 2px var(--primary-brand-hover);
+            outline: none;
         }
+        .input-success {
+            border-color: #22c55e !important; /* green-500 */
+            transition: border-color 0.5s;
+        }
+
 
         /* === ナビゲーションボタン === */
         .nav-button {
@@ -162,8 +167,8 @@
                     </div>
             </main>
 
-            <div id="shiftDetailModal" class="modal">
-                <div class="modal-content card" id="modalContent"></div>
+            <div id="shiftDetailModal" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div class="modal-content card max-w-lg w-full p-6 relative rounded-lg" id="modalContent"></div>
             </div>
 
             <footer class="text-center text-sm text-slate-500 mt-8 pb-4">
@@ -197,12 +202,11 @@
             applyTheme(newTheme);
         });
 
-        // 初期テーマを適用
         const savedTheme = localStorage.getItem('theme') || 'light';
         applyTheme(savedTheme);
 
 
-        // --- ログイン機能（変更なし） ---
+        // --- ログイン機能 ---
         const credentials = { manager: { password: 'pass123', role: 'manager' }, user: { password: 'pass123', role: 'employee' } };
         const staticUsersForLogin = [{ id: 1, name: '管理者', role: 'manager' }];
         let currentUser = null; 
@@ -241,15 +245,12 @@
             let appState = { users: [], shifts: {}, manualBreaks: {}, manualShortages: {} };
             let loadedMonths = {};
 
-            // 元のHTMLから要素を取得して、動的にmain-viewに追加していた部分を、
-            // 新しいHTML構造に合わせてそのまま使えるように調整。
             const mainViews = { 
                 calendar: document.getElementById('calendarView'), 
                 dailyChart: document.getElementById('dailyChartView'), 
                 bulkShift: document.getElementById('bulkShiftView') 
             };
             
-            // 各ビューの中身を最初に生成（元のコードから移動）
             mainViews.calendar.innerHTML = `
                 <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
                     <h2 class="text-2xl font-semibold mb-2 md:mb-0">イベント・個人シフト</h2>
@@ -307,11 +308,6 @@
             const currentUserInfo = document.getElementById('currentUserInfo');
             document.getElementById('currentYear').textContent = new Date().getFullYear();
             
-            // 以下、元のJavaScriptロジック（描画・イベントリスナー等）はほぼ変更なし
-            // ただし、要素の取得はdocument.getElementByIdで行う
-            
-            // === ここから下のロジックは前回から変更ありません ===
-
             const today = new Date();
             let calendarDisplayDate = new Date(today.getFullYear(), today.getMonth(), 1);
             let chartDisplayDate = new Date();
@@ -319,8 +315,7 @@
             let bulkViewIsFirstHalf = today.getDate() <= 15;
             let selectedEmployeeForHighlight = null;
             
-            // (以下、関数定義やイベントリスナーの設定は省略しますが、元のコードと同じものが続きます)
-
+            // --- Helper Functions ---
             function formatTime(d) { return `${('0' + d.getHours()).slice(-2)}:${('0' + d.getMinutes()).slice(-2)}`; }
             function formatDate(d) { return `${d.getFullYear()}-${('0' + (d.getMonth() + 1)).slice(-2)}-${('0' + d.getDate()).slice(-2)}`; }
             function formatDateToJapanese(d) { return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日 (${['日','月','火','水','木','金','土'][d.getDay()]})`; }
@@ -334,6 +329,7 @@
                 return d;
             }
             
+            // --- Data Fetching & State ---
             async function fetchDataForMonth(date) {
                 const year = date.getFullYear();
                 const month = ('0' + (date.getMonth() + 1)).slice(-2);
@@ -361,9 +357,126 @@
                 updateUserInfo();
                 refreshCurrentView();
             }
+            
+            // ★★★ START: MODIFIED SECTION ★★★
+            // --- 一括入力の変更を保存する関数 ---
+            
+            /**
+             * ユーザーのシフト情報を更新または作成・削除する
+             * @param {object} shiftData - {userId, date, time} を含むオブジェクト
+             */
+            async function updateShift(shiftData) {
+                try {
+                    // バックエンドAPIのエンドポイントに合わせてパスを修正してください
+                    const response = await fetch(`${API_BASE_URL}/api/update-shift`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(shiftData)
+                    });
+                    if (!response.ok) {
+                        throw new Error(`APIエラー: ${response.statusText}`);
+                    }
+                    await response.json();
 
-            async function updateShift(shiftData) { /* (変更なし) */ }
-            async function updateManualData(date, breaks, shortages) { /* (変更なし) */ }
+                    // ローカルのStateを更新
+                    if (!appState.shifts[shiftData.date]) {
+                        appState.shifts[shiftData.date] = [];
+                    }
+                    let existingShift = appState.shifts[shiftData.date].find(s => s.userId === shiftData.userId);
+
+                    if (shiftData.time) { // 時間が入力されている場合
+                        if (existingShift) {
+                            existingShift.time = shiftData.time; // 既存シフトを更新
+                        } else {
+                            const user = appState.users.find(u => u.id === shiftData.userId);
+                            appState.shifts[shiftData.date].push({ // 新規シフトを追加
+                                userId: shiftData.userId,
+                                time: shiftData.time,
+                                fullName: user ? user.name : 'Unknown',
+                                role: user ? user.role : 'employee'
+                            });
+                        }
+                    } else { // 時間が空欄にされた場合
+                        // ローカルStateからシフトを削除
+                        appState.shifts[shiftData.date] = appState.shifts[shiftData.date].filter(s => s.userId !== shiftData.userId);
+                    }
+                    return true;
+                } catch (error) {
+                    console.error("シフトの更新に失敗しました:", error);
+                    alert("シフトの更新に失敗しました。ページをリロードしてやり直してください。");
+                    return false;
+                }
+            }
+            
+            /**
+             * 日付ごとの休憩・不足時間データを更新する
+             * @param {string} date - 'YYYY-MM-DD'形式の日付
+             * @param {string} breaks - 休憩時間
+             * @param {string} shortages - 不足時間
+             */
+            async function updateManualData(date, breaks, shortages) {
+                 try {
+                    // バックエンドAPIのエンドポイントに合わせてパスを修正してください
+                    const response = await fetch(`${API_BASE_URL}/api/update-manual-data`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ date, breaks, shortages })
+                    });
+                    if (!response.ok) {
+                        throw new Error(`APIエラー: ${response.statusText}`);
+                    }
+                    await response.json();
+                    
+                    // ローカルのStateを更新
+                    appState.manualBreaks[date] = breaks;
+                    appState.manualShortages[date] = shortages;
+                    return true;
+                } catch (error) {
+                    console.error("手動データの更新に失敗しました:", error);
+                    alert("休憩・不足時間データの更新に失敗しました。ページをリロードしてやり直してください。");
+                    return false;
+                }
+            }
+            
+            /**
+             * 一括シフトテーブルの入力変更をハンドルする
+             * @param {Event} event - changeイベントオブジェクト
+             */
+            async function handleBulkShiftChange(event) {
+                const input = event.target;
+                if (!input.matches('input[type="text"]')) return;
+
+                const date = input.dataset.date;
+                let success = false;
+
+                if (input.matches('input[data-user-id]')) { // 従業員シフトのinput
+                    const userId = parseInt(input.dataset.userId, 10);
+                    const time = input.value.trim();
+                    success = await updateShift({ userId, date, time });
+
+                } else if (input.matches('.break-time-input') || input.matches('.shortage-input')) { // 休憩または不足のinput
+                    const breakInput = mainViews.bulkShift.querySelector(`.break-time-input[data-date="${date}"]`);
+                    const shortageInput = mainViews.bulkShift.querySelector(`.shortage-input[data-date="${date}"]`);
+                    const breaks = breakInput ? breakInput.value.trim() : '';
+                    const shortages = shortageInput ? shortageInput.value.trim() : '';
+                    success = await updateManualData(date, breaks, shortages);
+                }
+
+                // 更新成功時に視覚的なフィードバックを表示
+                if(success) {
+                    input.classList.add('input-success');
+                    setTimeout(() => {
+                        input.classList.remove('input-success');
+                    }, 1500);
+                } else {
+                    // 失敗した場合はビューを再描画して元の値に戻す
+                    refreshCurrentView();
+                }
+            }
+            // ★★★ END: MODIFIED SECTION ★★★
+
+
+            // --- UI/View Management ---
             function updateUserInfo() { currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`; }
             
             function setActiveNavButton(activeViewKey) {
@@ -410,15 +523,15 @@
                     const date = new Date(year, month, day);
                     const dateString = formatDate(date);
                     const dayCell = document.createElement('div');
-                    dayCell.className = 'calendar-day';
+                    dayCell.className = 'calendar-day p-2';
                     if(isToday(date)) dayCell.classList.add('today');
 
                     const shiftsForDay = appState.shifts[dateString] || [];
                     if (selectedEmployeeForHighlight && shiftsForDay.some(s => s.userId == selectedEmployeeForHighlight)) {
-                        dayCell.classList.add('highlight-shift');
+                        dayCell.classList.add('bg-indigo-100');
                     }
                     
-                    dayCell.innerHTML = `<div class="calendar-day-header">${day}</div>`;
+                    dayCell.innerHTML = `<div class="calendar-day-header text-sm">${day}</div>`;
                     dayCell.addEventListener('click', () => showShiftDetailModal(date));
                     calendarGrid.appendChild(dayCell);
                 }
@@ -524,30 +637,30 @@
                     if (day > lastDayOfMonth) break; 
                     const currentDate = new Date(year, month, day);
                     days.push(formatDate(currentDate));
-                    headerHtml += `<th>${formatDateToJapaneseShort(currentDate)}</th>`;
+                    headerHtml += `<th class="p-2 text-sm">${formatDateToJapaneseShort(currentDate)}</th>`;
                 }
                 dateHeader.innerHTML = headerHtml;
                 
                 const displayableUsers = [...appState.users];
                 displayableUsers.forEach(user => {
-                    let rowHtml = `<tr><th class="font-semibold ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
+                    let rowHtml = `<tr><th class="font-semibold p-2 text-left ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
                         const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
-                        rowHtml += `<td><input type="text" value="${shift ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full p-1 border rounded"></td>`;
+                        rowHtml += `<td class="p-0"><input type="text" value="${shift ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-0 text-center text-sm"></td>`;
                     });
                     rowHtml += '</tr>';
                     body.innerHTML += rowHtml;
                 });
                 
-                let breakTimesRowHtml = '<tr><th class="font-semibold">休憩</th>'; 
+                let breakTimesRowHtml = '<tr><th class="font-semibold p-2 text-left">休憩</th>'; 
                 days.forEach(dateString => {
-                    breakTimesRowHtml += `<td><input type="text" class="break-time-input w-full p-1 border rounded" value="${appState.manualBreaks[dateString] || ''}" data-date="${dateString}"></td>`;
+                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-0 text-center text-sm" value="${appState.manualBreaks[dateString] || ''}" data-date="${dateString}"></td>`;
                 });
                 breakRow.innerHTML = breakTimesRowHtml;
 
-                let shortageRowHtml = '<tr><th class="font-semibold">不足</th>'; 
+                let shortageRowHtml = '<tr><th class="font-semibold p-2 text-left">不足</th>'; 
                 days.forEach(dateString => {
-                    shortageRowHtml += `<td><input type="text" class="shortage-input w-full p-1 border rounded" value="${appState.manualShortages[dateString] || ''}" data-date="${dateString}"></td>`;
+                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-0 text-center text-sm" value="${appState.manualShortages[dateString] || ''}" data-date="${dateString}"></td>`;
                 });
                 shortageRow.innerHTML = shortageRowHtml;
 
@@ -560,6 +673,12 @@
             // --- イベントリスナー設定 ---
             updateUserInfo();
             Object.keys(navButtons).forEach(key => navButtons[key].addEventListener('click', () => switchView(key)));
+
+            // ★★★ START: ADDED LISTENER ★★★
+            // イベントデリゲーションを使用して、一括入力テーブルの変更を監視
+            mainViews.bulkShift.addEventListener('change', handleBulkShiftChange);
+            // ★★★ END: ADDED LISTENER ★★★
+
             document.getElementById('prevMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); fetchDataForMonth(calendarDisplayDate); });
             document.getElementById('nextMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); fetchDataForMonth(calendarDisplayDate); });
             document.getElementById('employeeHighlightSelect').addEventListener('change', (e) => { selectedEmployeeForHighlight = e.target.value; renderCalendar(); });
