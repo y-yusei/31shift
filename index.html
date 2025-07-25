@@ -96,7 +96,6 @@
         .other-month:hover { transform: none; box-shadow: none; }
         
         /* === モーダル === */
-        /* .modal の display:none は Tailwind の hidden クラスで制御するため削除 */
         .modal { background-color: rgba(0,0,0,0.6); }
 
         /* === 一括シフトテーブル === */
@@ -104,7 +103,7 @@
         .bulk-shift-table thead th { background-color: var(--bg-accent); position: sticky; top: 0; z-index: 20;}
         .bulk-shift-table tbody th { background-color: var(--bg-accent); position: sticky; left: 0; z-index: 10;}
         .bulk-shift-table thead th:first-child { left: 0; z-index: 30; }
-        .bulk-shift-table input[type="text"] { border: none; } /* 枠線を input-success で制御するためデフォルトは消す */
+        .bulk-shift-table input[type="text"] { border: none; }
     </style>
 </head>
 <body class="text-slate-800">
@@ -359,6 +358,7 @@
                 refreshCurrentView();
             }
             
+            // ★★★ START: MODIFIED SECTION ★★★
             // --- 一括入力の変更を保存する関数 ---
             async function updateShift(shiftData) {
                 try {
@@ -368,7 +368,9 @@
                         body: JSON.stringify(shiftData)
                     });
                     if (!response.ok) {
-                        throw new Error(`APIエラー: ${response.statusText}`);
+                        // APIからのエラーレスポンスを詳細に取得しようと試みる
+                        const errorBody = await response.text();
+                        throw new Error(`APIエラー (ステータス: ${response.status}): ${errorBody}`);
                     }
                     await response.json();
                     if (!appState.shifts[shiftData.date]) {
@@ -391,7 +393,8 @@
                     return true;
                 } catch (error) {
                     console.error("シフトの更新に失敗しました:", error);
-                    alert("シフトの更新に失敗しました。開発者ツールでエラー内容を確認してください。");
+                    // エラーメッセージをアラートに含める
+                    alert(`シフトの更新に失敗しました。\n\nエラー内容: ${error.message}\n\n開発者ツールのコンソールで詳細を確認してください。`);
                     return false;
                 }
             }
@@ -404,7 +407,8 @@
                         body: JSON.stringify({ date, breaks, shortages })
                     });
                     if (!response.ok) {
-                        throw new Error(`APIエラー: ${response.statusText}`);
+                        const errorBody = await response.text();
+                        throw new Error(`APIエラー (ステータス: ${response.status}): ${errorBody}`);
                     }
                     await response.json();
                     appState.manualBreaks[date] = breaks;
@@ -412,10 +416,12 @@
                     return true;
                 } catch (error) {
                     console.error("手動データの更新に失敗しました:", error);
-                    alert("休憩・不足時間データの更新に失敗しました。開発者ツールでエラー内容を確認してください。");
+                    // エラーメッセージをアラートに含める
+                    alert(`休憩・不足時間の更新に失敗しました。\n\nエラー内容: ${error.message}\n\n開発者ツールのコンソールで詳細を確認してください。`);
                     return false;
                 }
             }
+            // ★★★ END: MODIFIED SECTION ★★★
             
             async function handleBulkShiftChange(event) {
                 const input = event.target;
@@ -628,7 +634,6 @@
                 document.getElementById('toggleBulkShiftPeriodBtn').textContent = bulkViewIsFirstHalf ? '前半 (1-15日)' : `後半 (16-${lastDayOfMonth}日)`;
             }
             
-            // ★★★ MODIFIED: 実装を追加 ★★★
             function showShiftDetailModal(date) {
                 const dateString = formatDate(date);
                 modalContent.innerHTML = ''; 
@@ -653,7 +658,7 @@
 
                 contentHtml += `</ul>`;
                 modalContent.innerHTML = contentHtml;
-                shiftDetailModal.classList.remove('hidden'); // hiddenクラスを削除して表示
+                shiftDetailModal.classList.remove('hidden');
                 
                 document.getElementById('closeModalBtn').addEventListener('click', () => {
                     shiftDetailModal.classList.add('hidden');
@@ -674,7 +679,6 @@
             document.getElementById('nextMonthBulkBtn').addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); fetchDataForMonth(bulkViewDisplayMonth); });
             document.getElementById('toggleBulkShiftPeriodBtn').addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
             
-            // ★★★ MODIFIED: hiddenクラスで制御 ★★★
             shiftDetailModal.addEventListener('click', (event) => { 
                 if (event.target === shiftDetailModal) {
                     shiftDetailModal.classList.add('hidden');
