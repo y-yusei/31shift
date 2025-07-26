@@ -52,19 +52,19 @@ document.addEventListener('DOMContentLoaded', function() {
         
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error('APIからのデータ取得に失敗しました。');
+            if (!response.ok) throw new Error(`APIからのデータ取得に失敗しました (ステータス: ${response.status})`);
             
             const data = await response.json();
             appState.users = data.users || [];
             appState.shifts = { ...appState.shifts, ...(data.shifts || {}) };
             
             if (!currentUser && appState.users.length > 0) {
-                // ユーザー初期化（今回は簡略化）
-                currentUser = appState.users[0];
+                currentUser = appState.users[0]; // ユーザー初期化（簡略化）
             }
             refreshCurrentView();
         } catch (error) {
             console.error("fetchDataForMonthでエラー:", error);
+            // ここでユーザーにエラー通知UIを表示することも可能
         }
     }
 
@@ -81,12 +81,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const firstDayOfMonth = new Date(year, month, 1).getDay();
         const lastDateOfMonth = new Date(year, month + 1, 0).getDate();
 
-        // 月初の空白マスを埋める
         for (let i = 0; i < firstDayOfMonth; i++) {
             calendarGrid.insertAdjacentHTML('beforeend', `<div class="other-month"></div>`);
         }
 
-        // 日付マスを生成
         for (let day = 1; day <= lastDateOfMonth; day++) {
             const date = new Date(year, month, day);
             const dayCell = document.createElement('div');
@@ -95,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 dayCell.classList.add('today');
             }
             dayCell.innerHTML = `<div>${day}</div>`;
-            // ここにシフト情報を表示するロジックを追加できます
+            // TODO: シフト情報をセルに表示するロジック
             calendarGrid.appendChild(dayCell);
         }
     }
@@ -105,55 +103,61 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!dailyShiftChartCanvas) return;
 
             const dateString = formatDate(chartDisplayDate);
-            const shiftsForDay = (appState.shifts[dateString] || []).slice();
+            const shiftsForDay = appState.shifts[dateString] || [];
             
-            // ▼▼▼【並び替え処理】▼▼▼
             const sortedShifts = shiftsForDay
                 .filter(shift => shift && typeof shift.time === 'string' && shift.time.includes(' - '))
                 .sort((a, b) => {
-                    const startTimeA = a.time.split(' - ')[0];
-                    const startTimeB = b.time.split(' - ')[0];
-                    return startTimeA.localeCompare(startTimeB);
+                    const [startA, endA] = a.time.split(' - ');
+                    const [startB, endB] = b.time.split(' - ');
+                    if (startA !== startB) {
+                        return startA.localeCompare(startB);
+                    }
+                    return endA.localeCompare(endB);
                 });
             
-            const yLabels = [];
-            sortedShifts.forEach(shift => {
-                if (!yLabels.includes(shift.fullName)) {
-                    yLabels.push(shift.fullName);
-                }
-            });
+            // +++ Setを使って効率的にユニークなラベルを取得 +++
+            const yLabels = [...new Set(sortedShifts.map(shift => shift.fullName))];
 
-            const chartDatasetData = [];
-            sortedShifts.forEach(shift => {
+            // +++ mapとfilterでデータセットを生成 +++
+            const chartDatasetData = sortedShifts.map(shift => {
                 const [startTimeStr, endTimeStr] = shift.time.split(' - ');
                 const mainStartDate = parseTimeToDate(startTimeStr, chartDisplayDate);
                 const mainEndDate = parseTimeToDate(endTimeStr, chartDisplayDate);
-                if (!mainStartDate || !mainEndDate) return;
-                
+
+                if (!mainStartDate || !mainEndDate) return null;
+
                 const bgColor = shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)';
                 
-                chartDatasetData.push({ 
+                return { 
                     x: [mainStartDate.getTime(), mainEndDate.getTime()], 
                     y: shift.fullName, 
                     originalShift: shift,
                     bgColor: bgColor 
-                });
-            });
+                };
+            }).filter(Boolean); // nullを除外
 
             if (dailyShiftChartInstance) {
                 dailyShiftChartInstance.destroy();
             }
             
-            const chartMinTime = new Date(chartDisplayDate); chartMinTime.setHours(9,0,0,0);
-            const chartMaxTime = new Date(chartDisplayDate); chartMaxTime.setHours(21,0,0,0);
+            const chartMinTime = new Date(chartDisplayDate); chartMinTime.setHours(9, 0, 0, 0);
+            const chartMaxTime = new Date(chartDisplayDate); chartMaxTime.setHours(21, 0, 0, 0);
 
             dailyShiftChartInstance = new Chart(dailyShiftChartCanvas, {
                 type: 'bar',
-                data: { datasets: [{ label: '勤務時間', data: chartDatasetData, backgroundColor: chartDatasetData.map(d => d.bgColor) }] },
+                data: {
+                    // Y軸のラベルはここで指定するのがChart.jsの標準的な方法
+                    labels: yLabels, 
+                    datasets: [{ 
+                        data: chartDatasetData, 
+                        backgroundColor: chartDatasetData.map(d => d.bgColor) 
+                    }]
+                },
                 options: {
                     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
                     scales: {
-                        y: { type: 'category', labels: yLabels, offset: true, title: { display: true, text: '従業員' } },
+                        y: { offset: true, title: { display: true, text: '従業員' } },
                         x: { type: 'time', min: chartMinTime.getTime(), max: chartMaxTime.getTime(), time: { unit: 'hour', displayFormats: { hour: 'H時' } }, title: { display: true, text: '時間' } }
                     },
                     plugins: { 
@@ -163,7 +167,8 @@ document.addEventListener('DOMContentLoaded', function() {
                                 label: function(context) {
                                     const raw = context.raw;
                                     const shift = raw.originalShift;
-                                    let label = `${formatTime(new Date(raw.x[0]))} - ${formatTime(new Date(raw.x[1]))}`;
+                                    // +++ 従業員名を追加 +++
+                                    let label = `${shift.fullName}: ${formatTime(new Date(raw.x[0]))} - ${formatTime(new Date(raw.x[1]))}`;
                                     if (shift.notes) label += ` (備考: ${shift.notes})`;
                                     if (shift.breakTime) label += ` (休憩: ${shift.breakTime})`;
                                     return label;
@@ -200,19 +205,26 @@ document.addEventListener('DOMContentLoaded', function() {
         Object.keys(navButtons).forEach(key => {
             if (navButtons[key]) navButtons[key].classList.toggle('active', key === viewKey);
         });
-        await fetchDataForMonth(viewKey === 'dailyChart' ? chartDisplayDate : calendarDisplayDate);
+        
+        const dateForFetch = viewKey === 'dailyChart' ? chartDisplayDate : calendarDisplayDate;
+        await fetchDataForMonth(dateForFetch);
     }
 
     // --- アプリケーション初期化 ---
-    async function initializeApp() {
-        // ナビゲーションボタンのイベントリスナー
+    function initializeApp() {
         Object.keys(navButtons).forEach(key => {
             if (navButtons[key]) {
                 navButtons[key].addEventListener('click', () => switchView(key));
             }
         });
 
-        // 日付変更のイベントリスナー
+        // 日付変更ロジックを共通化
+        const updateChartDate = (daysToAdd) => {
+            chartDisplayDate.setDate(chartDisplayDate.getDate() + daysToAdd);
+            currentChartDateInput.value = formatDate(chartDisplayDate);
+            switchView('dailyChart');
+        };
+
         if(currentChartDateInput) {
             currentChartDateInput.value = formatDate(chartDisplayDate);
             currentChartDateInput.addEventListener('change', (e) => { 
@@ -220,13 +232,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 fetchDataForMonth(chartDisplayDate); 
             });
         }
-        if(prevDayChartBtn) prevDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); currentChartDateInput.value = formatDate(chartDisplayDate); switchView('dailyChart'); });
-        if(nextDayChartBtn) nextDayChartBtn.addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); currentChartDateInput.value = formatDate(chartDisplayDate); switchView('dailyChart'); });
-        if(prevMonthBtn) prevMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); switchView('calendar'); });
-        if(nextMonthBtn) nextMonthBtn.addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); switchView('calendar'); });
+        if(prevDayChartBtn) prevDayChartBtn.addEventListener('click', () => updateChartDate(-1));
+        if(nextDayChartBtn) nextDayChartBtn.addEventListener('click', () => updateChartDate(1));
+        
+        if(prevMonthBtn) prevMonthBtn.addEventListener('click', () => { 
+            calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); 
+            switchView('calendar'); 
+        });
+        if(nextMonthBtn) nextMonthBtn.addEventListener('click', () => { 
+            calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); 
+            switchView('calendar'); 
+        });
 
-        // 初回ロード
-        switchView('calendar');
+        switchView('calendar'); // 初回ロード
     }
 
     initializeApp();
