@@ -36,9 +36,6 @@ export default {
                 const month = url.searchParams.get('month');
                 if (!month) return withCors(new Response('Month query parameter is required', { status: 400 }));
 
-                // ★★★ ここからが修正箇所です ★★★
-                // JOIN を LEFT JOIN に変更し、退職者などusersテーブルに存在しないユーザーのシフトがあっても
-                // 他のシフトが問題なく表示されるようにする
                 const shiftsStmt = env.DB.prepare(`
                     SELECT 
                         s.id, s.user_id as userId, u.name as fullName, u.role, 
@@ -48,7 +45,6 @@ export default {
                     WHERE 
                         strftime('%Y-%m', s.shift_date) = ?
                 `).bind(month);
-                // ★★★ ここまでが修正箇所です ★★★
                 
                 const usersStmt = env.DB.prepare('SELECT * FROM users ORDER BY id');
                 const manualBreaksStmt = env.DB.prepare("SELECT * FROM manual_breaks WHERE strftime('%Y-%m', shift_date) = ?").bind(month);
@@ -66,22 +62,36 @@ export default {
                 };
                 return withCors(new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
 
-            } else if (url.pathname === '/api/shift' && request.method === 'POST') {
-                const { userId, date, time, breakTime, notes } = await request.json<any>();
+            // ★★★ START: MODIFIED SECTION ★★★
+            // パスを '/api/update-shift' に修正
+            } else if (url.pathname === '/api/update-shift' && request.method === 'POST') {
+                // フロントエンドからは time のみ送られてくるので、それに合わせる
+                const { userId, date, time } = await request.json<any>();
                 if (!userId || !date) return withCors(new Response('userId and date are required', { status: 400 }));
-
+    
+                // 既存のシフトを一度削除
                 await env.DB.prepare('DELETE FROM shifts WHERE user_id = ? AND shift_date = ?').bind(userId, date).run();
+                
+                // timeが空文字列でなければ新しいシフトを挿入
                 if (time) {
-                    await env.DB.prepare('INSERT INTO shifts (user_id, shift_date, time, break_time, notes) VALUES (?, ?, ?, ?, ?)').bind(userId, date, time || null, breakTime || null, notes || null).run();
+                    await env.DB.prepare('INSERT INTO shifts (user_id, shift_date, time) VALUES (?, ?, ?)')
+                        .bind(userId, date, time)
+                        .run();
                 }
-                return withCors(new Response('Shift updated successfully', { status: 200 }));
+                return withCors(new Response(JSON.stringify({ success: true }), { status: 200 }));
 
-            } else if (url.pathname === '/api/manuals' && request.method === 'POST') {
+            // パスを '/api/update-manual-data' に修正
+            } else if (url.pathname === '/api/update-manual-data' && request.method === 'POST') {
+            // ★★★ END: MODIFIED SECTION ★★★
                 const { date, breaks, shortages } = await request.json<any>();
                 if (!date) return withCors(new Response('Date is required', { status: 400 }));
                 
-                if(breaks !== undefined) await env.DB.prepare('INSERT OR REPLACE INTO manual_breaks (shift_date, break_text) VALUES (?, ?)').bind(date, breaks).run();
-                if(shortages !== undefined) await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages).run();
+                if(breaks !== undefined) {
+                    await env.DB.prepare('INSERT OR REPLACE INTO manual_breaks (shift_date, break_text) VALUES (?, ?)').bind(date, breaks).run();
+                }
+                if(shortages !== undefined) {
+                    await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages).run();
+                }
 
                 return withCors(new Response('Manual data updated', { status: 200 }));
             
