@@ -312,6 +312,7 @@
             let calendarDisplayDate = new Date(today.getFullYear(), today.getMonth(), 1);
             let chartDisplayDate = new Date();
             let bulkViewDisplayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            // リアルタイムの日付を取得して、その日が含まれる範囲を初めに表示
             let bulkViewIsFirstHalf = today.getDate() <= 15;
             let selectedEmployeeForHighlight = null;
             
@@ -530,13 +531,24 @@
                 const sortedShifts = shiftsForDay
                     .filter(s => s && s.time && s.time.includes(' - '))
                     .sort((a, b) => {
-                        const [aStartStr, ] = a.time.split(' - ');
-                        const [bStartStr, ] = b.time.split(' - ');
+                        const [aStartStr, aEndStr] = a.time.split(' - ');
+                        const [bStartStr, bEndStr] = b.time.split(' - ');
                         const timeA_start = parseTimeToDate(aStartStr, chartDisplayDate);
                         const timeB_start = parseTimeToDate(bStartStr, chartDisplayDate);
-                        if (!timeA_start) return 1;
-                        if (!timeB_start) return -1;
-                        return timeA_start - timeB_start;
+                        const timeA_end = parseTimeToDate(aEndStr, chartDisplayDate);
+                        const timeB_end = parseTimeToDate(bEndStr, chartDisplayDate);
+                        
+                        if (!timeA_start || !timeB_start) return 0;
+                        
+                        // まず出勤時間で比較
+                        const startTimeDiff = timeA_start - timeB_start;
+                        if (startTimeDiff !== 0) {
+                            return startTimeDiff;
+                        }
+                        
+                        // 出勤時間が同じ場合は退勤時間で比較
+                        if (!timeA_end || !timeB_end) return 0;
+                        return timeA_end - timeB_end;
                     });
 
                 const yLabels = sortedShifts.map(s => s.fullName);
