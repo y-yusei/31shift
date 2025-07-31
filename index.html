@@ -99,15 +99,15 @@
             }
             .bulk-shift-table th, .bulk-shift-table td {
                 padding: 0.2rem;
-                min-width: 50px;
+                min-width: 80px;
             }
             .bulk-shift-table input[type="text"] {
                 font-size: 0.7rem;
                 padding: 0.2rem;
-                min-width: 45px;
+                min-width: 75px;
             }
             .bulk-shift-table tbody th {
-                min-width: 70px;
+                min-width: 90px;
                 font-size: 0.7rem;
             }
         }
@@ -119,11 +119,25 @@
             }
             .bulk-shift-table th, .bulk-shift-table td {
                 padding: 0.3rem;
-                min-width: 55px;
+                min-width: 90px;
             }
             .bulk-shift-table input[type="text"] {
                 font-size: 0.8rem;
                 padding: 0.3rem;
+                min-width: 85px;
+            }
+        }
+        
+        /* デスクトップ対応 */
+        @media (min-width: 1025px) {
+            .bulk-shift-table th, .bulk-shift-table td {
+                min-width: 100px;
+            }
+            .bulk-shift-table input[type="text"] {
+                min-width: 95px;
+            }
+            .bulk-shift-table tbody th {
+                min-width: 120px;
             }
         }
     </style>
@@ -364,6 +378,12 @@
                 try {
                     console.log('シフト更新リクエスト:', shiftData);
                     
+                    // データの検証
+                    if (!shiftData.userId || !shiftData.date) {
+                        console.error('必須データが不足:', shiftData);
+                        throw new Error('必須データが不足しています');
+                    }
+                    
                     const response = await fetch(`${API_BASE_URL}/api/update-shift`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -404,6 +424,7 @@
                         appState.shifts[shiftData.date] = appState.shifts[shiftData.date].filter(s => s.userId !== shiftData.userId);
                     }
                     
+                    console.log('ローカル状態更新完了:', appState.shifts[shiftData.date]);
                     return true;
                 } catch (error) {
                     console.error("シフトの更新に失敗しました:", error);
@@ -415,6 +436,12 @@
             async function updateManualData(date, breaks, shortages) {
                 try {
                     console.log('手動データ更新リクエスト:', { date, breaks, shortages });
+                    
+                    // データの検証
+                    if (!date) {
+                        console.error('日付が不足:', { date, breaks, shortages });
+                        throw new Error('日付が不足しています');
+                    }
                     
                     const response = await fetch(`${API_BASE_URL}/api/update-manual-data`, {
                         method: 'POST',
@@ -437,6 +464,7 @@
                     appState.manualBreaks[date] = breaks;
                     appState.manualShortages[date] = shortages;
                     
+                    console.log('ローカル状態更新完了:', { breaks: appState.manualBreaks[date], shortages: appState.manualShortages[date] });
                     return true;
                 } catch (error) {
                     console.error("手動データの更新に失敗しました:", error);
@@ -449,25 +477,32 @@
                 const input = event.target;
                 if (!input.matches('input[type="text"]')) return;
 
+                console.log('入力変更イベント:', input.dataset);
+
                 const date = input.dataset.date;
                 let success = false;
+                
                 if (input.matches('input[data-user-id]')) {
                     const userId = parseInt(input.dataset.userId, 10);
                     const time = input.value.trim();
+                    console.log('シフト更新:', { userId, date, time });
                     success = await updateShift({ userId, date, time });
                 } else if (input.matches('.break-time-input') || input.matches('.shortage-input')) {
                     const breakInput = mainViews.bulkShift.querySelector(`.break-time-input[data-date="${date}"]`);
                     const shortageInput = mainViews.bulkShift.querySelector(`.shortage-input[data-date="${date}"]`);
                     const breaks = breakInput ? breakInput.value.trim() : '';
                     const shortages = shortageInput ? shortageInput.value.trim() : '';
+                    console.log('手動データ更新:', { date, breaks, shortages });
                     success = await updateManualData(date, breaks, shortages);
                 }
+                
                 if(success) {
                     input.classList.add('input-success');
                     setTimeout(() => {
                         input.classList.remove('input-success');
                     }, 1500);
                 } else {
+                    console.log('更新失敗、画面を再読み込み');
                     refreshCurrentView();
                 }
             }
@@ -645,7 +680,7 @@
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
                         const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
-                        rowHtml += `<td class="p-0"><input type="text" value="${shift ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder="09:00-17:00"></td>`;
+                        rowHtml += `<td class="p-0"><input type="text" value="${shift && shift.time ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder="09:00-17:00"></td>`;
                     });
                     rowHtml += '</tr>';
                     body.innerHTML += rowHtml;
@@ -653,13 +688,15 @@
                 
                 let breakTimesRowHtml = '<tr><th class="font-semibold p-2 text-left">休憩</th>'; 
                 days.forEach(dateString => {
-                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualBreaks[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="01:00"></td>`;
+                    const breakValue = appState.manualBreaks[dateString];
+                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${breakValue && breakValue.trim() ? breakValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="01:00"></td>`;
                 });
                 breakRow.innerHTML = breakTimesRowHtml;
 
                 let shortageRowHtml = '<tr><th class="font-semibold p-2 text-left">不足</th>'; 
                 days.forEach(dateString => {
-                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualShortages[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="01:00"></td>`;
+                    const shortageValue = appState.manualShortages[dateString];
+                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${shortageValue && shortageValue.trim() ? shortageValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="01:00"></td>`;
                 });
                 shortageRow.innerHTML = shortageRowHtml;
 
