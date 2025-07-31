@@ -21,18 +21,6 @@
             --primary-brand-hover: #4338ca;
             --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
         }
-
-        [data-theme="dark"] {
-            --bg-primary: #1e293b;
-            --bg-secondary: #334155;
-            --bg-accent: #475569;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --border-color: #475569;
-            --primary-brand: #6366f1;
-            --primary-brand-hover: #818cf8;
-            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        }
         
         /* === 基本スタイル === */
         body { 
@@ -90,19 +78,9 @@
         .calendar-day:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
         .calendar-day-header { font-weight: 500; color: var(--text-secondary); }
         .today { background-color: #fef2f2; }
-        [data-theme="dark"] .today { background-color: #453535; }
         .today .calendar-day-header { color: #dc2626; font-weight: 700; }
         .other-month { background-color: var(--bg-accent); color: var(--text-secondary); cursor: default; }
         .other-month:hover { transform: none; box-shadow: none; }
-        
-        /* ダークモードでの追加の文字色調整 */
-        [data-theme="dark"] .calendar-day-header {
-            color: var(--text-primary);
-        }
-        
-        [data-theme="dark"] .other-month {
-            color: var(--text-secondary);
-        }
         
         /* === モーダル === */
         .modal { background-color: rgba(0,0,0,0.6); }
@@ -117,35 +95,36 @@
         /* スマホ対応の一括シフトテーブル */
         @media (max-width: 768px) {
             .bulk-shift-table {
-                font-size: 0.75rem;
+                font-size: 0.7rem;
             }
             .bulk-shift-table th, .bulk-shift-table td {
-                padding: 0.25rem;
-                min-width: 60px;
+                padding: 0.2rem;
+                min-width: 50px;
             }
             .bulk-shift-table input[type="text"] {
-                font-size: 0.75rem;
-                padding: 0.25rem;
+                font-size: 0.7rem;
+                padding: 0.2rem;
+                min-width: 45px;
             }
             .bulk-shift-table tbody th {
-                min-width: 80px;
-                font-size: 0.75rem;
+                min-width: 70px;
+                font-size: 0.7rem;
             }
         }
         
-        /* ダークモード対応の文字色 */
-        [data-theme="dark"] .bulk-shift-table th,
-        [data-theme="dark"] .bulk-shift-table td {
-            color: var(--text-primary);
-        }
-        
-        [data-theme="dark"] .bulk-shift-table input[type="text"] {
-            color: var(--text-primary);
-            background-color: var(--bg-secondary);
-        }
-        
-        [data-theme="dark"] .bulk-shift-table input[type="text"]::placeholder {
-            color: var(--text-secondary);
+        /* タブレット対応 */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .bulk-shift-table {
+                font-size: 0.8rem;
+            }
+            .bulk-shift-table th, .bulk-shift-table td {
+                padding: 0.3rem;
+                min-width: 55px;
+            }
+            .bulk-shift-table input[type="text"] {
+                font-size: 0.8rem;
+                padding: 0.3rem;
+            }
         }
     </style>
 </head>
@@ -180,9 +159,6 @@
                         <div class="text-right">
                             <span id="currentUserInfo" class="text-sm block"></span>
                         </div>
-                        <button id="theme-toggle" class="bg-slate-200 hover:bg-slate-300 text-slate-800 h-8 w-8 rounded-full flex items-center justify-center transition">
-                           <i id="theme-icon" class="fas"></i>
-                        </button>
                         <button id="logoutBtn" class="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1 px-3 rounded-full transition">ログアウト</button>
                     </div>
                 </div>
@@ -222,31 +198,6 @@
     
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // --- テーマ切り替え機能 ---
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeIcon = document.getElementById('theme-icon');
-        const body = document.body;
-
-        const applyTheme = (theme) => {
-            if (theme === 'dark') {
-                body.setAttribute('data-theme', 'dark');
-                themeIcon.classList.remove('fa-sun');
-                themeIcon.classList.add('fa-moon');
-            } else {
-                body.removeAttribute('data-theme');
-                themeIcon.classList.remove('fa-moon');
-                themeIcon.classList.add('fa-sun');
-            }
-        };
-
-        themeToggle.addEventListener('click', () => {
-            const newTheme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            localStorage.setItem('theme', newTheme);
-            applyTheme(newTheme);
-        });
-
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        applyTheme(savedTheme);
 
 
         // --- ログイン機能 ---
@@ -345,6 +296,10 @@
                             </tfoot>
                         </table>
                     </div>
+                </div>
+                <div class="mt-4 text-sm text-gray-600">
+                    <p>※ 時間入力形式: "09:00 - 17:00" (出勤時間 - 退勤時間)</p>
+                    <p>※ 休憩・不足時間形式: "01:00" (時間:分)</p>
                 </div>`;
 
             const navButtons = { calendar: document.getElementById('showCalendarViewBtn'), dailyChart: document.getElementById('showDailyChartViewBtn'), bulkShift: document.getElementById('showBulkShiftViewBtn') };
@@ -404,70 +359,91 @@
                 refreshCurrentView();
             }
             
-            // ★★★ START: MODIFIED SECTION ★★★
             // --- 一括入力の変更を保存する関数 ---
             async function updateShift(shiftData) {
                 try {
+                    console.log('シフト更新リクエスト:', shiftData);
+                    
                     const response = await fetch(`${API_BASE_URL}/api/update-shift`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(shiftData)
                     });
+                    
+                    console.log('APIレスポンス:', response.status, response.statusText);
+                    
                     if (!response.ok) {
-                        // APIからのエラーレスポンスを詳細に取得しようと試みる
                         const errorBody = await response.text();
+                        console.error('APIエラーレスポンス:', errorBody);
                         throw new Error(`APIエラー (ステータス: ${response.status}): ${errorBody}`);
                     }
-                    await response.json();
+                    
+                    const result = await response.json();
+                    console.log('API成功レスポンス:', result);
+                    
+                    // ローカル状態を更新
                     if (!appState.shifts[shiftData.date]) {
                         appState.shifts[shiftData.date] = [];
                     }
+                    
                     let existingShift = appState.shifts[shiftData.date].find(s => s.userId === shiftData.userId);
-                    if (shiftData.time) {
+                    if (shiftData.time && shiftData.time.trim()) {
                         if (existingShift) {
                             existingShift.time = shiftData.time;
                         } else {
                             const user = appState.users.find(u => u.id === shiftData.userId);
                             appState.shifts[shiftData.date].push({
-                                userId: shiftData.userId, time: shiftData.time,
-                                fullName: user ? user.name : 'Unknown', role: user ? user.role : 'employee'
+                                userId: shiftData.userId, 
+                                time: shiftData.time,
+                                fullName: user ? user.name : 'Unknown', 
+                                role: user ? user.role : 'employee'
                             });
                         }
                     } else {
+                        // 空の場合は削除
                         appState.shifts[shiftData.date] = appState.shifts[shiftData.date].filter(s => s.userId !== shiftData.userId);
                     }
+                    
                     return true;
                 } catch (error) {
                     console.error("シフトの更新に失敗しました:", error);
-                    // エラーメッセージをアラートに含める
-                    alert(`シフトの更新に失敗しました。\n\nエラー内容: ${error.message}\n\n開発者ツールのコンソールで詳細を確認してください。`);
+                    alert(`シフトの更新に失敗しました。\n\nエラー内容: ${error.message}`);
                     return false;
                 }
             }
             
             async function updateManualData(date, breaks, shortages) {
-                 try {
+                try {
+                    console.log('手動データ更新リクエスト:', { date, breaks, shortages });
+                    
                     const response = await fetch(`${API_BASE_URL}/api/update-manual-data`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ date, breaks, shortages })
                     });
+                    
+                    console.log('APIレスポンス:', response.status, response.statusText);
+                    
                     if (!response.ok) {
                         const errorBody = await response.text();
+                        console.error('APIエラーレスポンス:', errorBody);
                         throw new Error(`APIエラー (ステータス: ${response.status}): ${errorBody}`);
                     }
-                    await response.json();
+                    
+                    const result = await response.json();
+                    console.log('API成功レスポンス:', result);
+                    
+                    // ローカル状態を更新
                     appState.manualBreaks[date] = breaks;
                     appState.manualShortages[date] = shortages;
+                    
                     return true;
                 } catch (error) {
                     console.error("手動データの更新に失敗しました:", error);
-                    // エラーメッセージをアラートに含める
-                    alert(`休憩・不足時間の更新に失敗しました。\n\nエラー内容: ${error.message}\n\n開発者ツールのコンソールで詳細を確認してください。`);
+                    alert(`休憩・不足時間の更新に失敗しました。\n\nエラー内容: ${error.message}`);
                     return false;
                 }
             }
-            // ★★★ END: MODIFIED SECTION ★★★
             
             async function handleBulkShiftChange(event) {
                 const input = event.target;
@@ -669,7 +645,7 @@
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
                         const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
-                        rowHtml += `<td class="p-0"><input type="text" value="${shift ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder="--:-- - --:--"></td>`;
+                        rowHtml += `<td class="p-0"><input type="text" value="${shift ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder="09:00-17:00"></td>`;
                     });
                     rowHtml += '</tr>';
                     body.innerHTML += rowHtml;
@@ -677,13 +653,13 @@
                 
                 let breakTimesRowHtml = '<tr><th class="font-semibold p-2 text-left">休憩</th>'; 
                 days.forEach(dateString => {
-                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualBreaks[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="--:--"></td>`;
+                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualBreaks[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="01:00"></td>`;
                 });
                 breakRow.innerHTML = breakTimesRowHtml;
 
                 let shortageRowHtml = '<tr><th class="font-semibold p-2 text-left">不足</th>'; 
                 days.forEach(dateString => {
-                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualShortages[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="--:--"></td>`;
+                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualShortages[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="01:00"></td>`;
                 });
                 shortageRow.innerHTML = shortageRowHtml;
 
