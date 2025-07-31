@@ -95,6 +95,15 @@
         .other-month { background-color: var(--bg-accent); color: var(--text-secondary); cursor: default; }
         .other-month:hover { transform: none; box-shadow: none; }
         
+        /* ダークモードでの追加の文字色調整 */
+        [data-theme="dark"] .calendar-day-header {
+            color: var(--text-primary);
+        }
+        
+        [data-theme="dark"] .other-month {
+            color: var(--text-secondary);
+        }
+        
         /* === モーダル === */
         .modal { background-color: rgba(0,0,0,0.6); }
 
@@ -104,6 +113,40 @@
         .bulk-shift-table tbody th { background-color: var(--bg-accent); position: sticky; left: 0; z-index: 10;}
         .bulk-shift-table thead th:first-child { left: 0; z-index: 30; }
         .bulk-shift-table input[type="text"] { border: none; }
+        
+        /* スマホ対応の一括シフトテーブル */
+        @media (max-width: 768px) {
+            .bulk-shift-table {
+                font-size: 0.75rem;
+            }
+            .bulk-shift-table th, .bulk-shift-table td {
+                padding: 0.25rem;
+                min-width: 60px;
+            }
+            .bulk-shift-table input[type="text"] {
+                font-size: 0.75rem;
+                padding: 0.25rem;
+            }
+            .bulk-shift-table tbody th {
+                min-width: 80px;
+                font-size: 0.75rem;
+            }
+        }
+        
+        /* ダークモード対応の文字色 */
+        [data-theme="dark"] .bulk-shift-table th,
+        [data-theme="dark"] .bulk-shift-table td {
+            color: var(--text-primary);
+        }
+        
+        [data-theme="dark"] .bulk-shift-table input[type="text"] {
+            color: var(--text-primary);
+            background-color: var(--bg-secondary);
+        }
+        
+        [data-theme="dark"] .bulk-shift-table input[type="text"]::placeholder {
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 <body class="text-slate-800">
@@ -291,15 +334,17 @@
                         <button id="toggleBulkShiftPeriodBtn" class="bg-sky-500 hover:bg-sky-600 text-white text-sm py-2 px-3 rounded-lg transition">前半 (1-15日)</button>
                     </div>
                 </div>
-                <div class="overflow-x-auto">
-                    <table id="bulkShiftTable" class="min-w-full border-collapse border bulk-shift-table">
-                        <thead><tr id="bulkShiftTableDateHeader"></tr></thead>
-                        <tbody id="bulkShiftTableBody"></tbody>
-                        <tfoot>
-                            <tr id="bulkShiftTableBreakTimesRow"></tr>
-                            <tr id="bulkShiftTableShortageHoursRow"></tr>
-                        </tfoot>
-                    </table>
+                <div class="overflow-x-auto" style="max-width: 100vw;">
+                    <div class="inline-block min-w-full">
+                        <table id="bulkShiftTable" class="min-w-full border-collapse border bulk-shift-table">
+                            <thead><tr id="bulkShiftTableDateHeader"></tr></thead>
+                            <tbody id="bulkShiftTableBody"></tbody>
+                            <tfoot>
+                                <tr id="bulkShiftTableBreakTimesRow"></tr>
+                                <tr id="bulkShiftTableShortageHoursRow"></tr>
+                            </tfoot>
+                        </table>
+                    </div>
                 </div>`;
 
             const navButtons = { calendar: document.getElementById('showCalendarViewBtn'), dailyChart: document.getElementById('showDailyChartViewBtn'), bulkShift: document.getElementById('showBulkShiftViewBtn') };
@@ -615,7 +660,7 @@
                     if (day > lastDayOfMonth) break; 
                     const currentDate = new Date(year, month, day);
                     days.push(formatDate(currentDate));
-                    headerHtml += `<th class="p-2 text-sm font-medium">${formatDateToJapaneseShort(currentDate)}</th>`;
+                    headerHtml += `<th class="p-2 text-sm font-medium whitespace-nowrap">${formatDateToJapaneseShort(currentDate)}</th>`;
                 }
                 dateHeader.innerHTML = headerHtml;
                 
@@ -624,7 +669,7 @@
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
                         const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
-                        rowHtml += `<td class="p-0"><input type="text" value="${shift ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);"></td>`;
+                        rowHtml += `<td class="p-0"><input type="text" value="${shift ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder="--:-- - --:--"></td>`;
                     });
                     rowHtml += '</tr>';
                     body.innerHTML += rowHtml;
@@ -632,13 +677,13 @@
                 
                 let breakTimesRowHtml = '<tr><th class="font-semibold p-2 text-left">休憩</th>'; 
                 days.forEach(dateString => {
-                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualBreaks[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);"></td>`;
+                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualBreaks[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="--:--"></td>`;
                 });
                 breakRow.innerHTML = breakTimesRowHtml;
 
                 let shortageRowHtml = '<tr><th class="font-semibold p-2 text-left">不足</th>'; 
                 days.forEach(dateString => {
-                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualShortages[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);"></td>`;
+                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${appState.manualShortages[dateString] || ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="--:--"></td>`;
                 });
                 shortageRow.innerHTML = shortageRowHtml;
 
