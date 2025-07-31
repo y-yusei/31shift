@@ -1,9 +1,20 @@
-name = "my-shift-backend"
+# Cloudflare Workerの名前
+name = "31shift-backend"
+# 実行するメインのスクリプトファイル
 main = "src/index.ts"
-compatibility_date = "2025-06-06"
+# 互換性日付 (このままでOK)
+compatibility_date = "2024-07-25"
 
+# D1データベースの接続設定
 [[d1_databases]]
+# Workerのコード内で env.DB としてアクセスするための名前
 binding = "DB"
-database_name = "31shift-db"
+# D1データベースの名前
+database_name = "31shift_db"
+# ★★★ あなたのD1データベースIDに置き換えてください ★★★
 database_id = "2eff9b20-1cb4-486d-80e9-17e278943f70"
 
+# マイグレーション（テーブル定義）ファイルの場所
+[[migrations]]
+tag = "v1"
+migrations_dir = "migrations"

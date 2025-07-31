@@ -62,17 +62,13 @@ export default {
                 };
                 return withCors(new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
 
-            // ★★★ START: MODIFIED SECTION ★★★
-            // パスを '/api/update-shift' に修正
+            // ✅ シフト更新用のパス
             } else if (url.pathname === '/api/update-shift' && request.method === 'POST') {
-                // フロントエンドからは time のみ送られてくるので、それに合わせる
                 const { userId, date, time } = await request.json<any>();
                 if (!userId || !date) return withCors(new Response('userId and date are required', { status: 400 }));
     
-                // 既存のシフトを一度削除
                 await env.DB.prepare('DELETE FROM shifts WHERE user_id = ? AND shift_date = ?').bind(userId, date).run();
                 
-                // timeが空文字列でなければ新しいシフトを挿入
                 if (time) {
                     await env.DB.prepare('INSERT INTO shifts (user_id, shift_date, time) VALUES (?, ?, ?)')
                         .bind(userId, date, time)
@@ -80,9 +76,8 @@ export default {
                 }
                 return withCors(new Response(JSON.stringify({ success: true }), { status: 200 }));
 
-            // パスを '/api/update-manual-data' に修正
+            // ✅ 休憩・不足時間更新用のパス
             } else if (url.pathname === '/api/update-manual-data' && request.method === 'POST') {
-            // ★★★ END: MODIFIED SECTION ★★★
                 const { date, breaks, shortages } = await request.json<any>();
                 if (!date) return withCors(new Response('Date is required', { status: 400 }));
                 
@@ -93,7 +88,7 @@ export default {
                     await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages).run();
                 }
 
-                return withCors(new Response('Manual data updated', { status: 200 }));
+                return withCors(new Response(JSON.stringify({ success: true }), { status: 200 }));
             
             } else if (url.pathname === '/api/login' && request.method === 'POST') {
                 const { username, password } = await request.json<any>();
@@ -121,7 +116,6 @@ export default {
             return withCors(new Response('Not Found', { status: 404 }));
 
         } catch (e: any) {
-            // プログラム全体で予期せぬエラーが発生した場合
             console.error("Unhandled Error:", e);
             return withCors(new Response(`Internal Server Error: ${e.message}`, { status: 500 }));
         }
