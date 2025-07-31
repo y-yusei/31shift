@@ -686,14 +686,14 @@
                 let breakTimesRowHtml = '<tr><th class="font-semibold p-2 text-left">休憩</th>'; 
                 days.forEach(dateString => {
                     const breakValue = appState.manualBreaks[dateString];
-                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${breakValue && breakValue.trim() ? breakValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="01:00"></td>`;
+                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${breakValue && breakValue.trim() ? breakValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder=" "></td>`;
                 });
                 breakRow.innerHTML = breakTimesRowHtml;
 
                 let shortageRowHtml = '<tr><th class="font-semibold p-2 text-left">不足</th>'; 
                 days.forEach(dateString => {
                     const shortageValue = appState.manualShortages[dateString];
-                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${shortageValue && shortageValue.trim() ? shortageValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder="01:00"></td>`;
+                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${shortageValue && shortageValue.trim() ? shortageValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder=" "></td>`;
                 });
                 shortageRow.innerHTML = shortageRowHtml;
 
