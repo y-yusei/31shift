@@ -90,6 +90,7 @@
         .bulk-shift-table thead th { background-color: var(--bg-accent); position: sticky; top: 0; z-index: 20;}
         .bulk-shift-table tbody th { background-color: var(--bg-accent); position: sticky; left: 0; z-index: 10;}
         .bulk-shift-table thead th:first-child { left: 0; z-index: 30; }
+        .bulk-shift-table tfoot th { background-color: var(--bg-accent); position: sticky; left: 0; z-index: 10;}
         .bulk-shift-table input[type="text"] { border: none; }
         
         /* スマホ対応の一括シフトテーブル */
@@ -310,10 +311,6 @@
                             </tfoot>
                         </table>
                     </div>
-                </div>
-                <div class="mt-4 text-sm text-gray-600">
-                    <p>※ 時間入力形式: "09:00 - 17:00" (出勤時間 - 退勤時間)</p>
-                    <p>※ 休憩・不足時間形式: "01:00" (時間:分)</p>
                 </div>`;
 
             const navButtons = { calendar: document.getElementById('showCalendarViewBtn'), dailyChart: document.getElementById('showDailyChartViewBtn'), bulkShift: document.getElementById('showBulkShiftViewBtn') };
@@ -680,7 +677,7 @@
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
                         const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
-                        rowHtml += `<td class="p-0"><input type="text" value="${shift && shift.time && shift.time.trim() ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder="09:00-17:00"></td>`;
+                        rowHtml += `<td class="p-0"><input type="text" value="${shift && shift.time && shift.time.trim() ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder=" "></td>`;
                     });
                     rowHtml += '</tr>';
                     body.innerHTML += rowHtml;
