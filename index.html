@@ -302,6 +302,7 @@
                 </div>
                 <div class="overflow-x-auto" style="max-width: 100vw;">
                     <div class="inline-block min-w-full">
+                        <div class="text-xs text-slate-500 mb-2">ヒント: セル選択中に貼り付け(Excel/Googleスプレッドシート対応)、矢印キー/Enterで移動、入力は「930-1830」「9:30-18:30」「9-18」などもOKです。</div>
                         <table id="bulkShiftTable" class="min-w-full border-collapse border bulk-shift-table">
                             <thead><tr id="bulkShiftTableDateHeader"></tr></thead>
                             <tbody id="bulkShiftTableBody"></tbody>
@@ -339,6 +340,51 @@
                 const d = new Date(b);
                 d.setHours(h, m, 0, 0);
                 return d;
+            }
+            function isValidShiftTimeFormat(str) {
+                if (!str) return true;
+                return /^\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$/.test(str.trim());
+            }
+            function normalizeShiftTimeInput(raw) {
+                if (!raw) return '';
+                let value = raw.trim();
+                value = value.replace(/[〜~－ー–—]/g, '-');
+                const parts = value.split('-').map(s => s.trim()).filter(Boolean);
+                if (parts.length !== 2) return raw.trim();
+                const normalizePart = (p) => {
+                    if (p === '') return null;
+                    const digits = p.replace(/[^0-9:]/g, '');
+                    if (!digits) return null;
+                    if (digits.includes(':')) {
+                        const [hStr, mStr = '00'] = digits.split(':');
+                        let h = parseInt(hStr, 10);
+                        let m = parseInt(mStr, 10);
+                        if (isNaN(h) || h < 0 || h > 23) return null;
+                        if (isNaN(m) || m < 0 || m > 59) m = 0;
+                        return `${('0' + h).slice(-2)}:${('0' + m).slice(-2)}`;
+                    } else {
+                        const num = digits;
+                        if (num.length <= 2) {
+                            const h = parseInt(num, 10);
+                            if (isNaN(h) || h < 0 || h > 23) return null;
+                            return `${('0' + h).slice(-2)}:00`;
+                        } else if (num.length === 3) {
+                            const h = parseInt(num.slice(0, 1), 10);
+                            const m = parseInt(num.slice(1), 10);
+                            if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) return null;
+                            return `${('0' + h).slice(-2)}:${('0' + m).slice(-2)}`;
+                        } else {
+                            const h = parseInt(num.slice(0, 2), 10);
+                            const m = parseInt(num.slice(2, 4), 10);
+                            if (isNaN(h) || h < 0 || h > 23 || isNaN(m) || m < 0 || m > 59) return null;
+                            return `${('0' + h).slice(-2)}:${('0' + m).slice(-2)}`;
+                        }
+                    }
+                };
+                const start = normalizePart(parts[0]);
+                const end = normalizePart(parts[1]);
+                if (!start || !end) return raw.trim();
+                return `${start} - ${end}`;
             }
             
             // --- Data Fetching & State ---
@@ -474,7 +520,17 @@
                 const input = event.target;
                 if (!input.matches('input[type="text"]')) return;
 
-                console.log('入力変更イベント:', input.dataset);
+                // オートフォーマット & バリデーション（シフトセルのみ）
+                if (input.matches('.bulk-cell')) {
+                    const normalized = normalizeShiftTimeInput(input.value);
+                    if (normalized !== input.value) input.value = normalized;
+                    if (!isValidShiftTimeFormat(input.value) && input.value.trim() !== '') {
+                        input.style.outline = '2px solid #ef4444';
+                        return;
+                    } else {
+                        input.style.outline = '';
+                    }
+                }
 
                 const date = input.dataset.date;
                 let success = false;
@@ -482,25 +538,80 @@
                 if (input.matches('input[data-user-id]')) {
                     const userId = parseInt(input.dataset.userId, 10);
                     const time = input.value.trim();
-                    console.log('シフト更新:', { userId, date, time });
                     success = await updateShift({ userId, date, time });
                 } else if (input.matches('.break-time-input') || input.matches('.shortage-input')) {
                     const breakInput = mainViews.bulkShift.querySelector(`.break-time-input[data-date="${date}"]`);
                     const shortageInput = mainViews.bulkShift.querySelector(`.shortage-input[data-date="${date}"]`);
                     const breaks = breakInput ? breakInput.value.trim() : '';
                     const shortages = shortageInput ? shortageInput.value.trim() : '';
-                    console.log('手動データ更新:', { date, breaks, shortages });
                     success = await updateManualData(date, breaks, shortages);
                 }
                 
                 if(success) {
                     input.classList.add('input-success');
-                    setTimeout(() => {
-                        input.classList.remove('input-success');
-                    }, 1500);
+                    setTimeout(() => { input.classList.remove('input-success'); }, 800);
                 } else {
-                    console.log('更新失敗、画面を再読み込み');
                     refreshCurrentView();
+                }
+            }
+
+            function setupBulkTableA11yFocus() {
+                const inputs = Array.from(mainViews.bulkShift.querySelectorAll('.bulk-cell, .break-time-input, .shortage-input'));
+                inputs.forEach(inp => inp.setAttribute('tabindex', '0'));
+            }
+
+            function focusNextCell(current, dx, dy) {
+                const allRows = Array.from(document.querySelectorAll('#bulkShiftTable tbody tr'));
+                if (allRows.length === 0) return;
+                const bodyInputs = Array.from(document.querySelectorAll('#bulkShiftTable tbody input.bulk-cell'));
+                const colsPerRow = bodyInputs.length / allRows.length;
+                const index = bodyInputs.indexOf(current);
+                if (index < 0) return;
+                const row = Math.floor(index / colsPerRow);
+                const col = index % colsPerRow;
+                let newRow = Math.max(0, Math.min(allRows.length - 1, row + dy));
+                let newCol = Math.max(0, Math.min(colsPerRow - 1, col + dx));
+                const newIndex = newRow * colsPerRow + newCol;
+                const target = bodyInputs[newIndex];
+                if (target) target.focus();
+            }
+
+            function handleBulkShiftKeyNavigation(e) {
+                const input = e.target;
+                if (!input.matches('input.bulk-cell')) return;
+                if (e.key === 'ArrowRight') { e.preventDefault(); focusNextCell(input, 1, 0); }
+                else if (e.key === 'ArrowLeft') { e.preventDefault(); focusNextCell(input, -1, 0); }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); focusNextCell(input, 0, 1); }
+                else if (e.key === 'ArrowUp') { e.preventDefault(); focusNextCell(input, 0, -1); }
+                else if (e.key === 'Enter') { e.preventDefault(); focusNextCell(input, 0, 1); }
+            }
+
+            async function handleBulkShiftPaste(e) {
+                const active = document.activeElement;
+                if (!active || !active.matches('input.bulk-cell')) return;
+                const clipboardData = e.clipboardData || window.clipboardData;
+                if (!clipboardData) return;
+                const text = clipboardData.getData('text');
+                if (!text) return;
+                const rows = text.split(/\r?\n/).filter(r => r.trim() !== '');
+                if (rows.length === 0) return;
+                e.preventDefault();
+                const tableBodyInputs = Array.from(document.querySelectorAll('#bulkShiftTable tbody input.bulk-cell'));
+                const totalRows = document.querySelectorAll('#bulkShiftTable tbody tr').length;
+                const colsPerRow = tableBodyInputs.length / totalRows;
+                const startIndex = tableBodyInputs.indexOf(active);
+                if (startIndex < 0) return;
+                let cursorIndex = startIndex;
+                for (let r = 0; r < rows.length; r++) {
+                    const cells = rows[r].split(/\t/);
+                    for (let c = 0; c < cells.length; c++) {
+                        const target = tableBodyInputs[cursorIndex + c];
+                        if (!target) break;
+                        const normalized = normalizeShiftTimeInput(cells[c]);
+                        target.value = normalized;
+                        target.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    cursorIndex += colsPerRow;
                 }
             }
 
@@ -654,6 +765,8 @@
                 const shortageRow = document.getElementById('bulkShiftTableShortageHoursRow');
                 if(!dateHeader || !body || !breakRow || !shortageRow) return;
 
+                setupBulkTableA11yFocus();
+
                 dateHeader.innerHTML = ''; body.innerHTML = ''; breakRow.innerHTML = ''; shortageRow.innerHTML = ''; 
 
                 const days = [];
@@ -677,7 +790,7 @@
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
                         const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
-                        rowHtml += `<td class="p-0"><input type="text" value="${shift && shift.time && shift.time.trim() ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder=" "></td>`;
+                        rowHtml += `<td class="p-0"><input type="text" value="${shift && shift.time && shift.time.trim() ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="bulk-cell w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder=" " inputmode="numeric" autocomplete="off"></td>`;
                     });
                     rowHtml += '</tr>';
                     body.innerHTML += rowHtml;
@@ -699,6 +812,9 @@
 
                 document.getElementById('bulkShiftMonthYear').textContent = `${year}年 ${month + 1}月`;
                 document.getElementById('toggleBulkShiftPeriodBtn').textContent = bulkViewIsFirstHalf ? '前半 (1-15日)' : `後半 (16-${lastDayOfMonth}日)`;
+
+                // 新規要素へフォーカス可能属性を付与
+                setupBulkTableA11yFocus();
             }
             
             function showShiftDetailModal(date) {
@@ -736,6 +852,8 @@
             updateUserInfo();
             Object.keys(navButtons).forEach(key => navButtons[key].addEventListener('click', () => switchView(key)));
             mainViews.bulkShift.addEventListener('change', handleBulkShiftChange);
+            mainViews.bulkShift.addEventListener('keydown', handleBulkShiftKeyNavigation);
+            mainViews.bulkShift.addEventListener('paste', handleBulkShiftPaste, true);
             document.getElementById('prevMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); fetchDataForMonth(calendarDisplayDate); });
             document.getElementById('nextMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); fetchDataForMonth(calendarDisplayDate); });
             document.getElementById('employeeHighlightSelect').addEventListener('change', (e) => { selectedEmployeeForHighlight = e.target.value; renderCalendar(); });
