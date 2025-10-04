@@ -785,7 +785,13 @@
                 }
                 dateHeader.innerHTML = headerHtml;
                 
-                const displayableUsers = [...appState.users];
+                const displayableUsers = [...appState.users].sort((a, b) => {
+                    // 管理者を上に表示
+                    if (a.role === 'manager' && b.role !== 'manager') return -1;
+                    if (a.role !== 'manager' && b.role === 'manager') return 1;
+                    // 同じrole内ではIDの昇順
+                    return a.id - b.id;
+                });
                 displayableUsers.forEach(user => {
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
