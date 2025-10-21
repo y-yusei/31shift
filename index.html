@@ -6,313 +6,9 @@
     <title>31shiftシステム</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <style>
-        /* === モダンカラーパレット定義 === */
-        :root {
-            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --bg-secondary: rgba(255, 255, 255, 0.95);
-            --bg-accent: rgba(255, 255, 255, 0.8);
-            --bg-card: rgba(255, 255, 255, 0.9);
-            --text-primary: #1a202c;
-            --text-secondary: #4a5568;
-            --text-muted: #718096;
-            --border-color: rgba(255, 255, 255, 0.2);
-            --border-light: rgba(0, 0, 0, 0.1);
-            --primary-brand: #667eea;
-            --primary-brand-hover: #5a67d8;
-            --secondary-brand: #764ba2;
-            --accent-color: #f093fb;
-            --success-color: #48bb78;
-            --warning-color: #ed8936;
-            --error-color: #f56565;
-            --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            --backdrop-blur: blur(10px);
-        }
-        
-        /* === 基本スタイル === */
-        body { 
-            font-family: 'Inter', 'Noto Sans JP', sans-serif; 
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            transition: all 0.3s ease;
-        }
-        
-        /* === 共通コンポーネント === */
-        .card {
-            background: var(--bg-card);
-            backdrop-filter: var(--backdrop-blur);
-            border-radius: 1rem;
-            box-shadow: var(--shadow-lg);
-            border: 1px solid var(--border-color);
-            transition: all 0.3s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-xl);
-        }
-        
-        .main-view, .modal-content {
-            background: var(--bg-card);
-            backdrop-filter: var(--backdrop-blur);
-            color: var(--text-primary);
-        }
-        
-        h1, h2, h3 { 
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-        
-        input, select {
-            background: var(--bg-secondary);
-            border: 2px solid var(--border-light);
-            color: var(--text-primary);
-            border-radius: 0.75rem;
-            transition: all 0.3s ease;
-            padding: 0.75rem 1rem;
-        }
-        
-        input:focus, select:focus {
-            border-color: var(--primary-brand);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-            outline: none;
-            transform: translateY(-1px);
-        }
-        
-        .input-success {
-            border-color: var(--success-color) !important;
-            box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.1) !important;
-            transition: all 0.5s ease;
-        }
-
-
-        /* === ナビゲーションボタン === */
-        .nav-button {
-            transition: all 0.3s ease;
-            border-radius: 0.75rem;
-            font-weight: 600;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .nav-button::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-        
-        .nav-button:hover::before {
-            left: 100%;
-        }
-        
-        .nav-button.active {
-            transform: translateY(-3px);
-            box-shadow: var(--shadow-xl);
-        }
-        
-        .nav-button:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
-        }
-        
-        /* === カレンダー === */
-        .calendar-day { 
-            border: 2px solid var(--border-light);
-            min-height: 60px; 
-            position: relative;
-            background: var(--bg-card);
-            backdrop-filter: var(--backdrop-blur);
-            border-radius: 0.5rem; 
-            cursor: pointer;
-            transition: all 0.3s ease;
-            padding: 0.5rem;
-        }
-        
-        @media (min-width: 1024px) {
-            .calendar-day {
-                min-height: 120px;
-                border-radius: 1rem;
-                padding: 1rem;
-            }
-        }
-        
-        .calendar-day:hover { 
-            transform: translateY(-2px); 
-            box-shadow: var(--shadow-lg);
-            border-color: var(--primary-brand);
-        }
-        
-        @media (min-width: 1024px) {
-            .calendar-day:hover {
-                transform: translateY(-4px);
-                box-shadow: var(--shadow-xl);
-            }
-        }
-        
-        .calendar-day-header { 
-            font-weight: 600; 
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            margin-bottom: 0.25rem;
-        }
-        
-        @media (min-width: 1024px) {
-            .calendar-day-header {
-                font-size: 1.1rem;
-                margin-bottom: 0.5rem;
-            }
-        }
-        
-        .today { 
-            background: linear-gradient(135deg, #fef2f2 0%, #fce7f3 100%);
-            border-color: #f56565;
-        }
-        
-        .today .calendar-day-header { 
-            color: #dc2626; 
-            font-weight: 700;
-        }
-        
-        .other-month { 
-            background: var(--bg-accent); 
-            color: var(--text-muted); 
-            cursor: default;
-            opacity: 0.6;
-        }
-        
-        .other-month:hover { 
-            transform: none; 
-            box-shadow: none;
-            border-color: var(--border-light);
-        }
-        
-        /* === モーダル === */
-        .modal { 
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: var(--backdrop-blur);
-        }
-
-        /* === 一括シフトテーブル === */
-        .bulk-shift-table {
-            background: white;
-            border-radius: 0.75rem;
-            overflow: hidden;
-        }
-        
-        .bulk-shift-table th, .bulk-shift-table td { 
-            border: 1px solid var(--border-light);
-            padding: 0.75rem;
-        }
-        
-        .bulk-shift-table thead th { 
-            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-            position: sticky; 
-            top: 0; 
-            z-index: 20;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-        
-        .bulk-shift-table tbody th { 
-            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-            position: sticky; 
-            left: 0; 
-            z-index: 10;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-        
-        .bulk-shift-table thead th:first-child { 
-            left: 0; 
-            z-index: 30; 
-        }
-        
-        .bulk-shift-table tfoot th { 
-            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-            position: sticky; 
-            left: 0; 
-            z-index: 10;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-        
-        .bulk-shift-table input[type="text"] { 
-            border: 2px solid transparent;
-            border-radius: 0.5rem;
-            transition: all 0.3s ease;
-            background: white;
-        }
-        
-        .bulk-shift-table input[type="text"]:focus {
-            border-color: var(--primary-brand);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-            outline: none;
-        }
-        
-        /* モバイル対応の一括シフトテーブル */
-        @media (max-width: 640px) {
-            .bulk-shift-table {
-                font-size: 0.6rem;
-            }
-            .bulk-shift-table th, .bulk-shift-table td {
-                padding: 0.15rem;
-                min-width: 80px;
-            }
-            .bulk-shift-table input[type="text"] {
-                font-size: 0.6rem;
-                padding: 0.15rem;
-                min-width: 75px;
-            }
-            .bulk-shift-table tbody th {
-                min-width: 90px;
-                font-size: 0.6rem;
-            }
-        }
-        
-        /* タブレット対応 */
-        @media (max-width: 1024px) and (min-width: 641px) {
-            .bulk-shift-table {
-                font-size: 0.7rem;
-            }
-            .bulk-shift-table th, .bulk-shift-table td {
-                padding: 0.25rem;
-                min-width: 100px;
-            }
-            .bulk-shift-table input[type="text"] {
-                font-size: 0.7rem;
-                padding: 0.25rem;
-                min-width: 95px;
-            }
-            .bulk-shift-table tbody th {
-                min-width: 110px;
-                font-size: 0.7rem;
-            }
-        }
-        
-        /* デスクトップ対応 */
-        @media (min-width: 1025px) {
-            .bulk-shift-table th, .bulk-shift-table td {
-                min-width: 140px;
-            }
-            .bulk-shift-table input[type="text"] {
-                min-width: 135px;
-            }
-            .bulk-shift-table tbody th {
-                min-width: 150px;
-            }
-        }
-    </style>
 </head>
 <body class="text-slate-800">
 
@@ -377,9 +73,21 @@
                         <p class="text-xs text-gray-500">シフト管理</p>
                     </div>
                 </div>
-                <button id="mobileLogoutBtn" class="w-10 h-10 bg-gradient-to-r from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
-                    <i class="fas fa-sign-out-alt text-white text-sm"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    <!-- ページ遷移ボタン -->
+                    <button id="mobileCalendarBtn" class="w-8 h-8 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-lg flex items-center justify-center shadow-md">
+                        <i class="fas fa-calendar-alt text-white text-xs"></i>
+                    </button>
+                    <button id="mobileChartBtn" class="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-md">
+                        <i class="fas fa-chart-bar text-white text-xs"></i>
+                    </button>
+                    <button id="mobileBulkBtn" class="w-8 h-8 bg-gradient-to-r from-teal-500 to-cyan-500 rounded-lg flex items-center justify-center shadow-md">
+                        <i class="fas fa-table text-white text-xs"></i>
+                    </button>
+                    <button id="mobileLogoutBtn" class="w-8 h-8 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center shadow-md">
+                        <i class="fas fa-sign-out-alt text-white text-xs"></i>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -677,10 +385,19 @@
                     <div id="calendarGrid" class="grid grid-cols-7 gap-1 lg:gap-3"></div>
                 </div>`;
 
-            // モバイル用カレンダー
+            // モバイル用ビューの初期化
             const calendarViewMobile = document.getElementById('calendarViewMobile');
+            const dailyChartViewMobile = document.getElementById('dailyChartViewMobile');
+            const bulkShiftViewMobile = document.getElementById('bulkShiftViewMobile');
+            
             if (calendarViewMobile) {
                 calendarViewMobile.innerHTML = mainViews.calendar.innerHTML;
+            }
+            if (dailyChartViewMobile) {
+                dailyChartViewMobile.innerHTML = mainViews.dailyChart.innerHTML;
+            }
+            if (bulkShiftViewMobile) {
+                bulkShiftViewMobile.innerHTML = mainViews.bulkShift.innerHTML;
             }
 
             mainViews.dailyChart.innerHTML = `
@@ -1079,7 +796,13 @@
             }
 
             // --- UI/View Management ---
-            function updateUserInfo() { currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`; }
+            function updateUserInfo() { 
+                currentUserInfo.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`; 
+                const currentUserInfoMobile = document.getElementById('currentUserInfoMobile');
+                if (currentUserInfoMobile) {
+                    currentUserInfoMobile.innerHTML = `ログイン中: <span class="font-bold">${currentUser.name}</span>`;
+                }
+            }
             
             function setActiveNavButton(activeViewKey) {
                 Object.keys(navButtons).forEach(key => {
@@ -1089,8 +812,40 @@
             }
 
             async function switchView(viewKey) {
+                // デスクトップビューの切り替え
                 Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
                 setActiveNavButton(viewKey);
+                
+                // モバイルビューの切り替え
+                const mobileViews = {
+                    calendar: document.getElementById('calendarViewMobile'),
+                    dailyChart: document.getElementById('dailyChartViewMobile'),
+                    bulkShift: document.getElementById('bulkShiftViewMobile')
+                };
+                
+                Object.keys(mobileViews).forEach(key => {
+                    if (mobileViews[key]) {
+                        mobileViews[key].classList.toggle('hidden', key !== viewKey);
+                    }
+                });
+                
+                // モバイルヘッダーボタンのアクティブ状態
+                const mobileButtons = {
+                    calendar: document.getElementById('mobileCalendarBtn'),
+                    dailyChart: document.getElementById('mobileChartBtn'),
+                    bulkShift: document.getElementById('mobileBulkBtn')
+                };
+                
+                Object.keys(mobileButtons).forEach(key => {
+                    if (mobileButtons[key]) {
+                        if (key === viewKey) {
+                            mobileButtons[key].classList.add('ring-2', 'ring-white', 'ring-opacity-50');
+                        } else {
+                            mobileButtons[key].classList.remove('ring-2', 'ring-white', 'ring-opacity-50');
+                        }
+                    }
+                });
+                
                 let targetDate;
                 if (viewKey === 'calendar') targetDate = calendarDisplayDate;
                 else if (viewKey === 'dailyChart') targetDate = chartDisplayDate;
@@ -1099,9 +854,25 @@
             }
             
             function refreshCurrentView() {
+                // デスクトップビューの更新
                 if (!mainViews.calendar.classList.contains('hidden')) renderCalendar();
                 else if (!mainViews.dailyChart.classList.contains('hidden')) renderDailyShiftChart();
                 else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
+                
+                // モバイルビューの更新
+                const calendarViewMobile = document.getElementById('calendarViewMobile');
+                const dailyChartViewMobile = document.getElementById('dailyChartViewMobile');
+                const bulkShiftViewMobile = document.getElementById('bulkShiftViewMobile');
+                
+                if (calendarViewMobile && !calendarViewMobile.classList.contains('hidden')) {
+                    calendarViewMobile.innerHTML = mainViews.calendar.innerHTML;
+                }
+                if (dailyChartViewMobile && !dailyChartViewMobile.classList.contains('hidden')) {
+                    dailyChartViewMobile.innerHTML = mainViews.dailyChart.innerHTML;
+                }
+                if (bulkShiftViewMobile && !bulkShiftViewMobile.classList.contains('hidden')) {
+                    bulkShiftViewMobile.innerHTML = mainViews.bulkShift.innerHTML;
+                }
             }
 
             function renderCalendar() {
@@ -1403,6 +1174,15 @@
             if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
             if (mobileLogoutBtn) mobileLogoutBtn.addEventListener('click', handleLogout);
             if (logoutBtnMobile) logoutBtnMobile.addEventListener('click', handleLogout);
+            
+            // モバイルヘッダーのページ遷移ボタン
+            const mobileCalendarBtn = document.getElementById('mobileCalendarBtn');
+            const mobileChartBtn = document.getElementById('mobileChartBtn');
+            const mobileBulkBtn = document.getElementById('mobileBulkBtn');
+            
+            if (mobileCalendarBtn) mobileCalendarBtn.addEventListener('click', () => switchView('calendar'));
+            if (mobileChartBtn) mobileChartBtn.addEventListener('click', () => switchView('dailyChart'));
+            if (mobileBulkBtn) mobileBulkBtn.addEventListener('click', () => switchView('bulkShift'));
             
             // 一括シフトイベント
             mainViews.bulkShift.addEventListener('change', handleBulkShiftChange);
