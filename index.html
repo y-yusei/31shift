@@ -9,89 +9,234 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
     <style>
-        /* === カラーパレット定義 === */
+        /* === モダンカラーパレット定義 === */
         :root {
-            --bg-primary: #f8fafc; /* メイン背景 */
-            --bg-secondary: #ffffff; /* カード背景 */
-            --bg-accent: #f1f5f9; /* アクセント背景 */
-            --text-primary: #1e293b; /* メインテキスト */
-            --text-secondary: #64748b; /* サブテキスト */
-            --border-color: #e2e8f0; /* 境界線 */
-            --primary-brand: #4f46e5; /* プライマリブランドカラー */
-            --primary-brand-hover: #4338ca;
-            --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+            --bg-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --bg-secondary: rgba(255, 255, 255, 0.95);
+            --bg-accent: rgba(255, 255, 255, 0.8);
+            --bg-card: rgba(255, 255, 255, 0.9);
+            --text-primary: #1a202c;
+            --text-secondary: #4a5568;
+            --text-muted: #718096;
+            --border-color: rgba(255, 255, 255, 0.2);
+            --border-light: rgba(0, 0, 0, 0.1);
+            --primary-brand: #667eea;
+            --primary-brand-hover: #5a67d8;
+            --secondary-brand: #764ba2;
+            --accent-color: #f093fb;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --error-color: #f56565;
+            --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --backdrop-blur: blur(10px);
         }
         
         /* === 基本スタイル === */
         body { 
             font-family: 'Inter', 'Noto Sans JP', sans-serif; 
-            background-color: var(--bg-primary); 
+            background: var(--bg-primary);
             color: var(--text-primary);
-            transition: background-color 0.3s, color 0.3s;
+            min-height: 100vh;
+            transition: all 0.3s ease;
         }
+        
         /* === 共通コンポーネント === */
         .card {
-            background-color: var(--bg-secondary);
-            border-radius: 0.75rem;
-            box-shadow: var(--shadow);
-            transition: background-color 0.3s, box-shadow 0.3s;
+            background: var(--bg-card);
+            backdrop-filter: var(--backdrop-blur);
+            border-radius: 1rem;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
         }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-xl);
+        }
+        
         .main-view, .modal-content {
-            background-color: var(--bg-secondary);
+            background: var(--bg-card);
+            backdrop-filter: var(--backdrop-blur);
             color: var(--text-primary);
         }
-        h1, h2, h3 { color: var(--text-primary); }
+        
+        h1, h2, h3 { 
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
         input, select {
-            background-color: var(--bg-secondary);
-            border-color: var(--border-color);
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-light);
             color: var(--text-primary);
-            border-radius: 0.5rem;
+            border-radius: 0.75rem;
+            transition: all 0.3s ease;
+            padding: 0.75rem 1rem;
         }
+        
         input:focus, select:focus {
             border-color: var(--primary-brand);
-            box-shadow: 0 0 0 2px var(--primary-brand-hover);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
             outline: none;
+            transform: translateY(-1px);
         }
+        
         .input-success {
-            border-color: #22c55e !important; /* green-500 */
-            transition: border-color 0.5s;
+            border-color: var(--success-color) !important;
+            box-shadow: 0 0 0 3px rgba(72, 187, 120, 0.1) !important;
+            transition: all 0.5s ease;
         }
 
 
         /* === ナビゲーションボタン === */
         .nav-button {
-            transition: all 0.2s ease-in-out;
+            transition: all 0.3s ease;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
         }
+        
+        .nav-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .nav-button:hover::before {
+            left: 100%;
+        }
+        
         .nav-button.active {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .nav-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: var(--shadow-lg);
         }
         
         /* === カレンダー === */
         .calendar-day { 
-            border: 1px solid var(--border-color);
-            min-height: 100px; position: relative;
-            background-color: var(--bg-secondary);
-            border-radius: 0.375rem; cursor: pointer;
-            transition: all 0.2s ease-in-out;
+            border: 2px solid var(--border-light);
+            min-height: 120px; 
+            position: relative;
+            background: var(--bg-card);
+            backdrop-filter: var(--backdrop-blur);
+            border-radius: 1rem; 
+            cursor: pointer;
+            transition: all 0.3s ease;
+            padding: 1rem;
         }
-        .calendar-day:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
-        .calendar-day-header { font-weight: 500; color: var(--text-secondary); }
-        .today { background-color: #fef2f2; }
-        .today .calendar-day-header { color: #dc2626; font-weight: 700; }
-        .other-month { background-color: var(--bg-accent); color: var(--text-secondary); cursor: default; }
-        .other-month:hover { transform: none; box-shadow: none; }
+        
+        .calendar-day:hover { 
+            transform: translateY(-4px); 
+            box-shadow: var(--shadow-xl);
+            border-color: var(--primary-brand);
+        }
+        
+        .calendar-day-header { 
+            font-weight: 600; 
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .today { 
+            background: linear-gradient(135deg, #fef2f2 0%, #fce7f3 100%);
+            border-color: #f56565;
+        }
+        
+        .today .calendar-day-header { 
+            color: #dc2626; 
+            font-weight: 700;
+        }
+        
+        .other-month { 
+            background: var(--bg-accent); 
+            color: var(--text-muted); 
+            cursor: default;
+            opacity: 0.6;
+        }
+        
+        .other-month:hover { 
+            transform: none; 
+            box-shadow: none;
+            border-color: var(--border-light);
+        }
         
         /* === モーダル === */
-        .modal { background-color: rgba(0,0,0,0.6); }
+        .modal { 
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: var(--backdrop-blur);
+        }
 
         /* === 一括シフトテーブル === */
-        .bulk-shift-table th, .bulk-shift-table td { border: 1px solid var(--border-color); }
-        .bulk-shift-table thead th { background-color: var(--bg-accent); position: sticky; top: 0; z-index: 20;}
-        .bulk-shift-table tbody th { background-color: var(--bg-accent); position: sticky; left: 0; z-index: 10;}
-        .bulk-shift-table thead th:first-child { left: 0; z-index: 30; }
-        .bulk-shift-table tfoot th { background-color: var(--bg-accent); position: sticky; left: 0; z-index: 10;}
-        .bulk-shift-table input[type="text"] { border: none; }
+        .bulk-shift-table {
+            background: white;
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        
+        .bulk-shift-table th, .bulk-shift-table td { 
+            border: 1px solid var(--border-light);
+            padding: 0.75rem;
+        }
+        
+        .bulk-shift-table thead th { 
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            position: sticky; 
+            top: 0; 
+            z-index: 20;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .bulk-shift-table tbody th { 
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            position: sticky; 
+            left: 0; 
+            z-index: 10;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .bulk-shift-table thead th:first-child { 
+            left: 0; 
+            z-index: 30; 
+        }
+        
+        .bulk-shift-table tfoot th { 
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            position: sticky; 
+            left: 0; 
+            z-index: 10;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        
+        .bulk-shift-table input[type="text"] { 
+            border: 2px solid transparent;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .bulk-shift-table input[type="text"]:focus {
+            border-color: var(--primary-brand);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            outline: none;
+        }
         
         /* スマホ対応の一括シフトテーブル */
         @media (max-width: 768px) {
@@ -145,68 +290,111 @@
 </head>
 <body class="text-slate-800">
 
-    <div id="loginScreen" class="flex items-center justify-center h-screen bg-slate-100">
-        <div class="w-full max-w-sm bg-white p-8 rounded-xl shadow-lg">
-            <h1 class="text-3xl font-bold text-slate-800 text-center mb-6">31shift</h1>
-            <div id="loginError" class="text-red-500 text-sm text-center mb-4 h-5"></div>
-            <div class="space-y-4">
-                <div>
-                    <label for="loginId" class="block text-sm font-medium text-slate-600">ユーザーID</label>
-                    <input type="text" id="loginId" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm" value="manager">
+    <div id="loginScreen" class="flex items-center justify-center min-h-screen relative overflow-hidden">
+        <!-- 背景装飾 -->
+        <div class="absolute inset-0 bg-gradient-to-br from-purple-400 via-pink-500 to-red-500 opacity-90"></div>
+        <div class="absolute inset-0 bg-black opacity-20"></div>
+        
+        <!-- 浮遊する装飾要素 -->
+        <div class="absolute top-20 left-20 w-32 h-32 bg-white opacity-10 rounded-full animate-pulse"></div>
+        <div class="absolute bottom-20 right-20 w-24 h-24 bg-white opacity-10 rounded-full animate-pulse delay-1000"></div>
+        <div class="absolute top-1/2 left-10 w-16 h-16 bg-white opacity-10 rounded-full animate-pulse delay-500"></div>
+        
+        <div class="relative z-10 w-full max-w-md">
+            <div class="card p-8 mx-4">
+                <div class="text-center mb-8">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full mb-4">
+                        <i class="fas fa-calendar-alt text-white text-2xl"></i>
+                    </div>
+                    <h1 class="text-4xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">31shift</h1>
+                    <p class="text-gray-600 text-sm">シフト管理システム</p>
                 </div>
-                <div>
-                    <label for="loginPassword" class="block text-sm font-medium text-slate-600">パスワード</label>
-                    <input type="password" id="loginPassword" class="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm" value="pass123">
+                
+                <div id="loginError" class="text-red-500 text-sm text-center mb-6 h-5"></div>
+                
+                <div class="space-y-6">
+                    <div class="space-y-2">
+                        <label for="loginId" class="block text-sm font-semibold text-gray-700">ユーザーID</label>
+                        <div class="relative">
+                            <i class="fas fa-user absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="loginId" class="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300" value="manager" placeholder="ユーザーIDを入力">
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="loginPassword" class="block text-sm font-semibold text-gray-700">パスワード</label>
+                        <div class="relative">
+                            <i class="fas fa-lock absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                            <input type="password" id="loginPassword" class="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:ring-4 focus:ring-purple-100 transition-all duration-300" value="pass123" placeholder="パスワードを入力">
+                        </div>
+                    </div>
+                    
+                    <button id="loginBtn" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300">
+                        <i class="fas fa-sign-in-alt mr-2"></i>
+                        ログイン
+                    </button>
                 </div>
-                <button id="loginBtn" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
-                    ログイン
-                </button>
             </div>
         </div>
     </div>
     
     <div id="appContainer" class="hidden">
         <div class="container mx-auto p-4 md:p-6 lg:p-8">
-            <header class="card p-6 mb-8">
-                <div class="flex flex-wrap justify-between items-center gap-4">
-                    <h1 class="text-3xl font-bold">31shift</h1>
+            <header class="card p-8 mb-8">
+                <div class="flex flex-wrap justify-between items-center gap-6">
+                    <div class="flex items-center gap-4">
+                        <div class="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl">
+                            <i class="fas fa-calendar-alt text-white text-xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">31shift</h1>
+                            <p class="text-sm text-gray-600">シフト管理システム</p>
+                        </div>
+                    </div>
+                    
                     <div class="flex items-center gap-4">
                         <div class="text-right">
-                            <span id="currentUserInfo" class="text-sm block"></span>
+                            <span id="currentUserInfo" class="text-sm text-gray-600 block"></span>
                         </div>
-                        <button id="logoutBtn" class="bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-1 px-3 rounded-full transition">ログアウト</button>
+                        <button id="logoutBtn" class="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white text-sm font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300">
+                            <i class="fas fa-sign-out-alt mr-2"></i>ログアウト
+                        </button>
                     </div>
                 </div>
-                <nav class="mt-4 border-t pt-4 flex flex-wrap gap-2" style="border-color: var(--border-color);">
-                    <button id="showCalendarViewBtn" class="nav-button text-white font-bold py-2 px-4 rounded-lg bg-indigo-500 hover:bg-indigo-600">
+                
+                <nav class="mt-8 border-t pt-6 flex flex-wrap gap-3" style="border-color: var(--border-light);">
+                    <button id="showCalendarViewBtn" class="nav-button text-white font-semibold py-3 px-6 rounded-xl bg-gradient-to-r from-indigo-500 to-blue-500 hover:from-indigo-600 hover:to-blue-600 shadow-md">
                         <i class="fas fa-calendar-alt mr-2"></i>カレンダー
                     </button>
-                    <button id="showDailyChartViewBtn" class="nav-button text-white font-bold py-2 px-4 rounded-lg bg-purple-500 hover:bg-purple-600">
+                    <button id="showDailyChartViewBtn" class="nav-button text-white font-semibold py-3 px-6 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-md">
                         <i class="fas fa-chart-bar mr-2"></i>日別グラフ
                     </button>
-                    <button id="showBulkShiftViewBtn" class="nav-button text-white font-bold py-2 px-4 rounded-lg bg-teal-500 hover:bg-teal-600">
+                    <button id="showBulkShiftViewBtn" class="nav-button text-white font-semibold py-3 px-6 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 shadow-md">
                         <i class="fas fa-table mr-2"></i>一括入力
                     </button>
                 </nav>
             </header>
 
-            <main>
-                <div id="calendarView" class="main-view card p-6">
+            <main class="space-y-8">
+                <div id="calendarView" class="main-view card p-8">
                     </div>
 
-                <div id="dailyChartView" class="main-view card p-6 hidden">
+                <div id="dailyChartView" class="main-view card p-8 hidden">
                     </div>
                 
-                <div id="bulkShiftView" class="main-view card p-6 hidden">
+                <div id="bulkShiftView" class="main-view card p-8 hidden">
                     </div>
             </main>
 
             <div id="shiftDetailModal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center p-4">
-                <div class="modal-content card max-w-lg w-full p-6 relative rounded-lg" id="modalContent"></div>
+                <div class="modal-content card max-w-lg w-full p-8 relative rounded-2xl shadow-2xl" id="modalContent"></div>
             </div>
 
-            <footer class="text-center text-sm text-slate-500 mt-8 pb-4">
-                &copy; <span id="currentYear"></span> 31shift
+            <footer class="text-center text-sm text-gray-500 mt-12 pb-8">
+                <div class="inline-flex items-center gap-2">
+                    <i class="fas fa-heart text-red-500"></i>
+                    <span>&copy; <span id="currentYear"></span> 31shift - Made with love</span>
+                </div>
             </footer>
         </div>
     </div>
@@ -261,49 +449,94 @@
             };
             
             mainViews.calendar.innerHTML = `
-                <div class="flex flex-col md:flex-row justify-between items-center mb-4 gap-4">
-                    <h2 class="text-2xl font-semibold mb-2 md:mb-0">イベント・個人シフト</h2>
-                    <div class="flex items-center gap-2">
-                        <label for="employeeHighlightSelect" class="text-sm font-medium">従業員ハイライト:</label>
-                        <select id="employeeHighlightSelect" class="p-2 border rounded-md shadow-sm text-sm"></select>
+                <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8 gap-6">
+                    <div>
+                        <h2 class="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent mb-2">イベント・個人シフト</h2>
+                        <p class="text-gray-600">カレンダーでシフトを確認・管理できます</p>
                     </div>
-                    <div class="flex items-center">
-                        <button id="prevMonthBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-4 rounded-lg transition"><i class="fas fa-angle-left mr-1"></i>前月</button>
-                        <h3 id="calendarMonthYear" class="text-xl font-semibold w-40 text-center mx-2"></h3>
-                        <button id="nextMonthBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-4 rounded-lg transition">次月<i class="fas fa-angle-right ml-1"></i></button>
+                    
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
+                        <div class="flex items-center gap-3">
+                            <label for="employeeHighlightSelect" class="text-sm font-semibold text-gray-700 whitespace-nowrap">従業員ハイライト:</label>
+                            <select id="employeeHighlightSelect" class="px-4 py-2 border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition-all duration-300 text-sm font-medium"></select>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <button id="prevMonthBtn" class="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300">
+                                <i class="fas fa-angle-left mr-2"></i>前月
+                            </button>
+                            <h3 id="calendarMonthYear" class="text-xl font-bold text-gray-800 w-40 text-center mx-2"></h3>
+                            <button id="nextMonthBtn" class="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300">
+                                次月<i class="fas fa-angle-right ml-2"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div class="grid grid-cols-7 gap-2 text-center font-semibold mb-2 text-sm">
-                    <div class="text-red-600">日</div><div>月</div><div>火</div><div>水</div><div>木</div><div>金</div><div class="text-blue-600">土</div>
+                
+                <div class="grid grid-cols-7 gap-3 text-center font-bold mb-4 text-sm">
+                    <div class="text-red-500 py-2">日</div>
+                    <div class="text-gray-600 py-2">月</div>
+                    <div class="text-gray-600 py-2">火</div>
+                    <div class="text-gray-600 py-2">水</div>
+                    <div class="text-gray-600 py-2">木</div>
+                    <div class="text-gray-600 py-2">金</div>
+                    <div class="text-blue-500 py-2">土</div>
                 </div>
-                <div id="calendarGrid" class="grid grid-cols-7 gap-2"></div>`;
+                <div id="calendarGrid" class="grid grid-cols-7 gap-3"></div>`;
 
             mainViews.dailyChart.innerHTML = `
-                <h2 class="text-2xl font-semibold mb-4">日別シフトグラフ</h2>
-                <div class="flex items-center mb-4">
-                    <button id="prevDayChartBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-4 rounded-l-lg transition"><i class="fas fa-chevron-left"></i></button>
-                    <input type="date" id="currentChartDate" class="p-2 text-center border-y border-slate-300 w-full text-lg">
-                    <button id="nextDayChartBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-4 rounded-r-lg transition"><i class="fas fa-chevron-right"></i></button>
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">日別シフトグラフ</h2>
+                    <p class="text-gray-600">日別のシフト状況を視覚的に確認できます</p>
                 </div>
-                <div class="chart-container mb-6" style="height: 400px;"><canvas id="dailyShiftChart"></canvas></div>`;
+                
+                <div class="flex items-center mb-8 bg-white rounded-xl p-4 shadow-md">
+                    <button id="prevDayChartBtn" class="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-l-xl transition-all duration-300">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <input type="date" id="currentChartDate" class="flex-1 text-center border-0 bg-transparent text-lg font-semibold text-gray-800 focus:outline-none">
+                    <button id="nextDayChartBtn" class="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 font-semibold py-3 px-4 rounded-r-xl transition-all duration-300">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+                
+                <div class="chart-container bg-white rounded-xl p-6 shadow-md" style="height: 400px;">
+                    <canvas id="dailyShiftChart"></canvas>
+                </div>`;
 
             mainViews.bulkShift.innerHTML = `
-                <h2 class="text-2xl font-semibold mb-4">一括シフト表示・作成</h2>
-                <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
-                    <div class="flex items-center">
-                        <button id="prevMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-3 rounded-l-lg transition"><i class="fas fa-angle-double-left"></i>前月</button>
-                        <span id="bulkShiftMonthYear" class="font-semibold text-lg mx-4"></span>
-                        <button id="nextMonthBulkBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-3 rounded-r-lg transition">次月<i class="fas fa-angle-double-right"></i></button>
+                <div class="mb-8">
+                    <h2 class="text-3xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent mb-2">一括シフト表示・作成</h2>
+                    <p class="text-gray-600">効率的にシフトを一括入力・編集できます</p>
+                </div>
+                
+                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between mb-8 gap-6">
+                    <div class="flex items-center gap-3">
+                        <button id="prevMonthBulkBtn" class="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-l-xl transition-all duration-300">
+                            <i class="fas fa-angle-double-left mr-2"></i>前月
+                        </button>
+                        <span id="bulkShiftMonthYear" class="font-bold text-xl text-gray-800 mx-4"></span>
+                        <button id="nextMonthBulkBtn" class="bg-gradient-to-r from-gray-100 to-gray-200 hover:from-gray-200 hover:to-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-r-xl transition-all duration-300">
+                            次月<i class="fas fa-angle-double-right ml-2"></i>
+                        </button>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm">表示範囲:</span>
-                        <button id="toggleBulkShiftPeriodBtn" class="bg-sky-500 hover:bg-sky-600 text-white text-sm py-2 px-3 rounded-lg transition">前半 (1-15日)</button>
+                    
+                    <div class="flex items-center gap-3">
+                        <span class="text-sm font-semibold text-gray-700">表示範囲:</span>
+                        <button id="toggleBulkShiftPeriodBtn" class="bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-600 hover:to-blue-600 text-white text-sm font-semibold py-2 px-4 rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all duration-300">
+                            前半 (1-15日)
+                        </button>
                     </div>
                 </div>
-                <div class="overflow-x-auto" style="max-width: 100vw;">
-                    <div class="inline-block min-w-full">
-                        <div class="text-xs text-slate-500 mb-2">ヒント: セル選択中に貼り付け(Excel/Googleスプレッドシート対応)、矢印キー/Enterで移動、入力は「930-1830」「9:30-18:30」「9-18」などもOKです。</div>
-                        <table id="bulkShiftTable" class="min-w-full border-collapse border bulk-shift-table">
+                
+                <div class="bg-white rounded-xl p-6 shadow-md">
+                    <div class="text-xs text-gray-500 mb-4 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+                        <i class="fas fa-info-circle mr-2"></i>
+                        ヒント: セル選択中に貼り付け(Excel/Googleスプレッドシート対応)、矢印キー/Enterで移動、入力は「930-1830」「9:30-18:30」「9-18」などもOKです。
+                    </div>
+                    
+                    <div class="overflow-x-auto rounded-xl border border-gray-200">
+                        <table id="bulkShiftTable" class="min-w-full border-collapse bulk-shift-table">
                             <thead><tr id="bulkShiftTableDateHeader"></tr></thead>
                             <tbody id="bulkShiftTableBody"></tbody>
                             <tfoot>
@@ -662,15 +895,15 @@
                     const date = new Date(year, month, day);
                     const dateString = formatDate(date);
                     const dayCell = document.createElement('div');
-                    dayCell.className = 'calendar-day p-2';
+                    dayCell.className = 'calendar-day';
                     if(isToday(date)) dayCell.classList.add('today');
 
                     const shiftsForDay = appState.shifts[dateString] || [];
                     if (selectedEmployeeForHighlight && shiftsForDay.some(s => s.userId == selectedEmployeeForHighlight)) {
-                        dayCell.classList.add('bg-indigo-100');
+                        dayCell.classList.add('bg-gradient-to-br', 'from-indigo-100', 'to-blue-100');
                     }
                     
-                    dayCell.innerHTML = `<div class="calendar-day-header text-sm">${day}</div>`;
+                    dayCell.innerHTML = `<div class="calendar-day-header">${day}</div>`;
                     dayCell.addEventListener('click', () => showShiftDetailModal(date));
                     calendarGrid.appendChild(dayCell);
                 }
@@ -829,23 +1062,40 @@
                 const shiftsForDay = appState.shifts[dateString] || [];
                 
                 let contentHtml = `
-                    <div class="flex justify-between items-center mb-4 pb-4 border-b" style="border-color: var(--border-color);">
-                        <h3 class="text-xl font-bold">${formatDateToJapanese(date)}</h3>
-                        <button id="closeModalBtn" class="text-2xl hover:text-red-500 transition-colors">&times;</button>
+                    <div class="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-800">${formatDateToJapanese(date)}</h3>
+                            <p class="text-sm text-gray-600 mt-1">シフト詳細</p>
+                        </div>
+                        <button id="closeModalBtn" class="text-3xl text-gray-400 hover:text-red-500 transition-colors duration-300 transform hover:scale-110">&times;</button>
                     </div>
-                    <ul class="space-y-2 max-h-80 overflow-y-auto">
+                    <div class="space-y-3 max-h-80 overflow-y-auto">
                 `;
 
                 if (shiftsForDay.length > 0) {
                     shiftsForDay.forEach(shift => {
                         const user = appState.users.find(u => u.id === shift.userId) || { name: '不明' };
-                        contentHtml += `<li class="p-3 rounded-md" style="background-color: var(--bg-accent);"><span class="font-bold">${user.name}</span>: ${shift.time}</li>`;
+                        const isManager = user.role === 'manager';
+                        contentHtml += `
+                            <div class="p-4 rounded-xl ${isManager ? 'bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200'}">
+                                <div class="flex items-center justify-between">
+                                    <span class="font-semibold text-gray-800 ${isManager ? 'text-amber-700' : 'text-blue-700'}">${user.name}</span>
+                                    ${isManager ? '<span class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-medium">管理者</span>' : ''}
+                                </div>
+                                <div class="text-sm text-gray-600 mt-1">${shift.time}</div>
+                            </div>
+                        `;
                     });
                 } else {
-                    contentHtml += `<li>この日のシフト情報はありません。</li>`;
+                    contentHtml += `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-calendar-times text-4xl mb-3"></i>
+                            <p>この日のシフト情報はありません</p>
+                        </div>
+                    `;
                 }
 
-                contentHtml += `</ul>`;
+                contentHtml += `</div>`;
                 modalContent.innerHTML = contentHtml;
                 shiftDetailModal.classList.remove('hidden');
                 
@@ -883,4 +1133,5 @@
     });
     </script>
 </body>
+</html>
 </html>
