@@ -753,14 +753,20 @@
                 
                 if (viewKey === 'shiftSubmission' || viewKey === 'shiftManagement') {
                     // シフト提出関連のビューの場合は、アクティブな期間を取得
-                    await fetchActiveShiftPeriod();
-                    if (viewKey === 'shiftSubmission' && currentShiftPeriod) {
-                        // 既存の提出データを取得
-                        const submissions = await fetchShiftSubmissions(currentShiftPeriod.id, currentUser.id);
-                        shiftSubmissions = {};
-                        submissions.forEach(sub => {
-                            shiftSubmissions[sub.submission_date] = sub;
-                        });
+                    try {
+                        await fetchActiveShiftPeriod();
+                        if (viewKey === 'shiftSubmission' && currentShiftPeriod) {
+                            // 既存の提出データを取得
+                            const submissions = await fetchShiftSubmissions(currentShiftPeriod.id, currentUser.id);
+                            shiftSubmissions = {};
+                            submissions.forEach(sub => {
+                                shiftSubmissions[sub.submission_date] = sub;
+                            });
+                        }
+                    } catch (error) {
+                        console.error('Error loading shift submission data:', error);
+                        // エラーが発生した場合は、デフォルトの表示を行う
+                        currentShiftPeriod = null;
                     }
                 } else {
                     // 従来のビューの場合は月次データを取得
@@ -810,7 +816,7 @@
                 const detailsElement = document.getElementById('submissionPeriodDetails');
 
                 if (!currentShiftPeriod) {
-                    infoElement.textContent = '現在、シフト提出期間は設定されていません。';
+                    infoElement.textContent = '現在、シフト提出期間は設定されていません。管理者に連絡してください。';
                     formElement.classList.add('hidden');
                     closedElement.classList.remove('hidden');
                     return;
@@ -1034,7 +1040,13 @@
                     return;
                 }
 
-                loadSubmissionsList();
+                // 管理者の場合は、期間が設定されていない場合でもフォームを表示
+                if (!currentShiftPeriod) {
+                    const submissionsList = document.getElementById('submissionsList');
+                    submissionsList.innerHTML = '<div class="text-center text-gray-500 py-8">シフト提出期間が設定されていません。上記のフォームで期間を作成してください。</div>';
+                } else {
+                    loadSubmissionsList();
+                }
             }
 
             async function loadSubmissionsList() {
