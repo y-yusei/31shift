@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS shift_periods (
     name TEXT NOT NULL, -- 期間名（例：「2024年1月前半」）
     start_date TEXT NOT NULL, -- 期間開始日（YYYY-MM-DD）
     end_date TEXT NOT NULL, -- 期間終了日（YYYY-MM-DD）
+    submission_start_date TEXT NOT NULL, -- 提出開始日（YYYY-MM-DD）
     display_deadline TEXT NOT NULL, -- 表示上の締切日（YYYY-MM-DD）
     actual_deadline TEXT NOT NULL, -- 実際の締切日（YYYY-MM-DD）
     is_active BOOLEAN DEFAULT 1, -- 現在募集中の期間かどうか
@@ -70,5 +71,5 @@ INSERT OR IGNORE INTO users (id, username, password, name, role) VALUES
 (3, 'employee2', 'pass123', '従業員2', 'employee');
 
 -- サンプルのシフト提出期間（2024年1月前半）
-INSERT OR IGNORE INTO shift_periods (id, name, start_date, end_date, display_deadline, actual_deadline, is_active, created_by) VALUES 
-(1, '2024年1月前半', '2024-01-01', '2024-01-15', '2024-01-15', '2024-01-17', 1, 1);
+INSERT OR IGNORE INTO shift_periods (id, name, start_date, end_date, submission_start_date, display_deadline, actual_deadline, is_active, created_by) VALUES 
+(1, '2024年1月前半', '2024-01-01', '2024-01-15', '2023-12-20', '2024-01-15', '2024-01-17', 1, 1);

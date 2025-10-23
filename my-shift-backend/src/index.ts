@@ -122,8 +122,8 @@ export default {
 
             // シフト提出期間作成（管理者のみ）
             } else if (url.pathname === '/api/shift-periods' && request.method === 'POST') {
-                const { name, startDate, endDate, displayDeadline, actualDeadline, createdBy } = await request.json<any>();
-                if (!name || !startDate || !endDate || !displayDeadline || !actualDeadline || !createdBy) {
+                const { name, startDate, endDate, submissionStartDate, displayDeadline, actualDeadline, createdBy } = await request.json<any>();
+                if (!name || !startDate || !endDate || !submissionStartDate || !displayDeadline || !actualDeadline || !createdBy) {
                     return withCors(new Response('All fields are required', { status: 400 }));
                 }
 
@@ -131,9 +131,9 @@ export default {
                 await env.DB.prepare('UPDATE shift_periods SET is_active = 0').run();
 
                 const stmt = env.DB.prepare(`
-                    INSERT INTO shift_periods (name, start_date, end_date, display_deadline, actual_deadline, created_by)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                `).bind(name, startDate, endDate, displayDeadline, actualDeadline, createdBy);
+                    INSERT INTO shift_periods (name, start_date, end_date, submission_start_date, display_deadline, actual_deadline, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                `).bind(name, startDate, endDate, submissionStartDate, displayDeadline, actualDeadline, createdBy);
                 
                 const result = await stmt.run();
                 return withCors(new Response(JSON.stringify({ success: true, id: result.meta.last_row_id }), { headers: { 'Content-Type': 'application/json' }}));
@@ -154,8 +154,11 @@ export default {
                     return withCors(new Response('Shift period not found', { status: 404 }));
                 }
 
-                // 実際の締切日をチェック
+                // 提出期間をチェック
                 const today = new Date().toISOString().split('T')[0];
+                if (today < period.submission_start_date) {
+                    return withCors(new Response('Submission period has not started yet', { status: 400 }));
+                }
                 if (today > period.actual_deadline) {
                     return withCors(new Response('Submission deadline has passed', { status: 400 }));
                 }

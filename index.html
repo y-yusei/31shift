@@ -428,6 +428,10 @@
                                         </select>
                                     </div>
                                     <div>
+                                        <label for="submissionStartDate" class="block text-sm font-medium text-gray-700 mb-1">提出開始日</label>
+                                        <input type="date" id="submissionStartDate" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                                    </div>
+                                    <div>
                                         <label for="displayDeadline" class="block text-sm font-medium text-gray-700 mb-1">表示上の締切日</label>
                                         <input type="date" id="displayDeadline" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                                     </div>
@@ -843,19 +847,24 @@
                 }
 
                 const today = new Date().toISOString().split('T')[0];
-                const isWithinPeriod = today >= currentShiftPeriod.start_date && today <= currentShiftPeriod.actual_deadline;
+                const isWithinPeriod = today >= currentShiftPeriod.submission_start_date && today <= currentShiftPeriod.actual_deadline;
                 
                 if (!isWithinPeriod) {
-                    infoElement.textContent = `シフト提出期間外です。期間: ${currentShiftPeriod.start_date} ～ ${currentShiftPeriod.end_date}`;
+                    if (today < currentShiftPeriod.submission_start_date) {
+                        infoElement.textContent = `シフト提出期間はまだ開始していません。提出開始日: ${currentShiftPeriod.submission_start_date}`;
+                    } else {
+                        infoElement.textContent = `シフト提出期間は終了しました。期間: ${currentShiftPeriod.submission_start_date} ～ ${currentShiftPeriod.actual_deadline}`;
+                    }
                     formElement.classList.add('hidden');
                     closedElement.classList.remove('hidden');
                     return;
                 }
 
-                infoElement.textContent = `シフト提出期間: ${currentShiftPeriod.start_date} ～ ${currentShiftPeriod.end_date} (締切: ${currentShiftPeriod.display_deadline})`;
+                infoElement.textContent = `シフト提出期間: ${currentShiftPeriod.submission_start_date} ～ ${currentShiftPeriod.actual_deadline} (表示締切: ${currentShiftPeriod.display_deadline})`;
                 detailsElement.innerHTML = `
                     <div class="text-sm">
-                        <div><strong>期間:</strong> ${currentShiftPeriod.start_date} ～ ${currentShiftPeriod.end_date}</div>
+                        <div><strong>シフト対象期間:</strong> ${currentShiftPeriod.start_date} ～ ${currentShiftPeriod.end_date}</div>
+                        <div><strong>提出期間:</strong> ${currentShiftPeriod.submission_start_date} ～ ${currentShiftPeriod.actual_deadline}</div>
                         <div><strong>表示上の締切:</strong> ${currentShiftPeriod.display_deadline}</div>
                         <div><strong>実際の締切:</strong> ${currentShiftPeriod.actual_deadline}</div>
                     </div>
@@ -1391,6 +1400,7 @@
                 const year = parseInt(document.getElementById('periodYear').value);
                 const month = parseInt(document.getElementById('periodMonth').value);
                 const half = document.getElementById('periodHalf').value;
+                const submissionStartDate = document.getElementById('submissionStartDate').value;
                 const displayDeadline = document.getElementById('displayDeadline').value;
                 const actualDeadline = document.getElementById('actualDeadline').value;
 
@@ -1408,19 +1418,20 @@
                     name = `${year}年${month}月後半`;
                 }
 
-                console.log('Creating period:', { name, startDate, endDate, displayDeadline, actualDeadline });
+                console.log('Creating period:', { name, startDate, endDate, submissionStartDate, displayDeadline, actualDeadline });
 
                 const periodData = {
                     name: name,
                     startDate: startDate,
                     endDate: endDate,
+                    submissionStartDate: submissionStartDate,
                     displayDeadline: displayDeadline,
                     actualDeadline: actualDeadline,
                     createdBy: currentUser.id
                 };
 
-                if (!displayDeadline || !actualDeadline) {
-                    alert('締切日を入力してください。');
+                if (!submissionStartDate || !displayDeadline || !actualDeadline) {
+                    alert('提出開始日と締切日を入力してください。');
                     return;
                 }
 
