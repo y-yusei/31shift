@@ -190,6 +190,7 @@ export default {
             } else if (url.pathname === '/api/shift-submissions' && request.method === 'GET') {
                 const periodId = url.searchParams.get('periodId');
                 const userId = url.searchParams.get('userId');
+                const date = url.searchParams.get('date');
                 
                 let query = `
                     SELECT ss.*, u.name as user_name, sp.name as period_name
@@ -198,14 +199,23 @@ export default {
                     JOIN shift_periods sp ON ss.period_id = sp.id
                 `;
                 let params: any[] = [];
+                let whereConditions = [];
                 
                 if (periodId) {
-                    query += ' WHERE ss.period_id = ?';
+                    whereConditions.push('ss.period_id = ?');
                     params.push(periodId);
                 }
                 if (userId) {
-                    query += periodId ? ' AND ss.user_id = ?' : ' WHERE ss.user_id = ?';
+                    whereConditions.push('ss.user_id = ?');
                     params.push(userId);
+                }
+                if (date) {
+                    whereConditions.push('ss.submission_date = ?');
+                    params.push(date);
+                }
+                
+                if (whereConditions.length > 0) {
+                    query += ' WHERE ' + whereConditions.join(' AND ');
                 }
                 
                 query += ' ORDER BY ss.submission_date, u.name';
