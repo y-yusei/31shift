@@ -285,6 +285,42 @@
             let loadedMonths = {};
             let currentShiftPeriod = null;
             let shiftSubmissions = {};
+            
+            // デフォルト時間の管理
+            const DEFAULT_START_TIME = '09:00';
+            const DEFAULT_END_TIME = '21:00';
+            
+            // ローカルストレージから前回の時間を取得
+            function getLastInputTimes() {
+                try {
+                    const lastTimes = localStorage.getItem('lastShiftTimes');
+                    if (lastTimes) {
+                        const parsed = JSON.parse(lastTimes);
+                        return {
+                            startTime: parsed.startTime || DEFAULT_START_TIME,
+                            endTime: parsed.endTime || DEFAULT_END_TIME,
+                            breakTime: parsed.breakTime || ''
+                        };
+                    }
+                } catch (error) {
+                    console.error('Error loading last input times:', error);
+                }
+                return {
+                    startTime: DEFAULT_START_TIME,
+                    endTime: DEFAULT_END_TIME,
+                    breakTime: ''
+                };
+            }
+            
+            // ローカルストレージに時間を保存
+            function saveLastInputTimes(startTime, endTime, breakTime) {
+                try {
+                    const times = { startTime, endTime, breakTime };
+                    localStorage.setItem('lastShiftTimes', JSON.stringify(times));
+                } catch (error) {
+                    console.error('Error saving last input times:', error);
+                }
+            }
 
             const mainViews = { 
                 calendar: document.getElementById('calendarView'), 
@@ -946,6 +982,21 @@
                 const modal = document.getElementById('shiftDetailModal');
                 const content = document.getElementById('modalContent');
                 
+                // デフォルト値を決定
+                let defaultStartTime, defaultEndTime, defaultBreakTime;
+                if (existingSubmission) {
+                    // 既存の提出がある場合はその値を使用
+                    defaultStartTime = existingSubmission.startTime;
+                    defaultEndTime = existingSubmission.endTime;
+                    defaultBreakTime = existingSubmission.breakTime;
+                } else {
+                    // 新規の場合は前回の入力値またはデフォルト値を使用
+                    const lastTimes = getLastInputTimes();
+                    defaultStartTime = lastTimes.startTime;
+                    defaultEndTime = lastTimes.endTime;
+                    defaultBreakTime = lastTimes.breakTime;
+                }
+                
                 content.innerHTML = `
                     <div class="flex justify-between items-center mb-4 pb-4 border-b">
                         <h3 class="text-xl font-bold">${formatDateToJapanese(date)} のシフト希望</h3>
@@ -956,17 +1007,17 @@
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">開始時間</label>
                                 <input type="time" id="startTime" class="w-full px-3 py-2 border border-gray-300 rounded-md" 
-                                       value="${existingSubmission ? existingSubmission.startTime : ''}" required>
+                                       value="${defaultStartTime}" required>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">終了時間</label>
                                 <input type="time" id="endTime" class="w-full px-3 py-2 border border-gray-300 rounded-md" 
-                                       value="${existingSubmission ? existingSubmission.endTime : ''}" required>
+                                       value="${defaultEndTime}" required>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">休憩時間（分）</label>
                                 <input type="number" id="breakTime" class="w-full px-3 py-2 border border-gray-300 rounded-md" 
-                                       value="${existingSubmission ? existingSubmission.breakTime : ''}" placeholder="60">
+                                       value="${defaultBreakTime}" placeholder="60">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">備考</label>
@@ -1003,6 +1054,9 @@
                         alert('開始時間と終了時間は必須です。');
                         return;
                     }
+
+                    // 入力した時間をローカルストレージに保存
+                    saveLastInputTimes(startTime, endTime, breakTime);
 
                     // ローカル状態を更新
                     shiftSubmissions[dateString] = {
@@ -1041,6 +1095,12 @@
                 if (submissions.length === 0) {
                     alert('シフトを入力してください。');
                     return;
+                }
+
+                // 最新の入力時間を保存（最後の提出データから）
+                if (submissions.length > 0) {
+                    const lastSubmission = submissions[submissions.length - 1];
+                    saveLastInputTimes(lastSubmission.startTime, lastSubmission.endTime, lastSubmission.breakTime);
                 }
 
                 try {
