@@ -131,8 +131,8 @@ export default {
                 await env.DB.prepare('UPDATE shift_periods SET is_active = 0').run();
 
                 const stmt = env.DB.prepare(`
-                    INSERT INTO shift_periods (name, start_date, end_date, submission_start_date, display_deadline, actual_deadline, created_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO shift_periods (name, start_date, end_date, submission_start_date, display_deadline, actual_deadline, is_active, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, 1, ?)
                 `).bind(name, startDate, endDate, submissionStartDate, displayDeadline, actualDeadline, createdBy);
                 
                 const result = await stmt.run();
