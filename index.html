@@ -1044,10 +1044,28 @@
                 }
             }
 
+            // イベントリスナーを保存するための変数
+            let shiftSubmissionModalHandlers = {
+                closeHandler: null,
+                submitHandler: null,
+                deleteHandler: null
+            };
+
             function showShiftSubmissionModal(date, existingSubmission = null) {
                 const dateString = date.toISOString().split('T')[0];
                 const modal = document.getElementById('shiftDetailModal');
                 const content = document.getElementById('modalContent');
+                
+                // 既存のイベントリスナーを削除
+                if (shiftSubmissionModalHandlers.closeHandler) {
+                    document.getElementById('closeModalBtn').removeEventListener('click', shiftSubmissionModalHandlers.closeHandler);
+                }
+                if (shiftSubmissionModalHandlers.submitHandler) {
+                    document.getElementById('shiftSubmissionFormModal').removeEventListener('submit', shiftSubmissionModalHandlers.submitHandler);
+                }
+                if (shiftSubmissionModalHandlers.deleteHandler) {
+                    document.getElementById('deleteSubmissionBtn').removeEventListener('click', shiftSubmissionModalHandlers.deleteHandler);
+                }
                 
                 // デフォルト値を決定
                 let defaultStartTime, defaultEndTime, defaultBreakTime;
@@ -1105,12 +1123,12 @@
 
                 modal.classList.remove('hidden');
 
-                // イベントリスナー設定
-                document.getElementById('closeModalBtn').addEventListener('click', () => {
+                // 新しいイベントリスナーを定義
+                shiftSubmissionModalHandlers.closeHandler = () => {
                     modal.classList.add('hidden');
-                });
+                };
 
-                document.getElementById('shiftSubmissionFormModal').addEventListener('submit', async (e) => {
+                shiftSubmissionModalHandlers.submitHandler = async (e) => {
                     e.preventDefault();
                     const startTime = document.getElementById('startTime').value;
                     const endTime = document.getElementById('endTime').value;
@@ -1136,20 +1154,34 @@
 
                     modal.classList.add('hidden');
                     renderShiftSubmissionCalendar();
-                });
+                };
+
+                shiftSubmissionModalHandlers.deleteHandler = () => {
+                    delete shiftSubmissions[dateString];
+                    modal.classList.add('hidden');
+                    renderShiftSubmissionCalendar();
+                };
+
+                // イベントリスナーを設定
+                document.getElementById('closeModalBtn').addEventListener('click', shiftSubmissionModalHandlers.closeHandler);
+                document.getElementById('shiftSubmissionFormModal').addEventListener('submit', shiftSubmissionModalHandlers.submitHandler);
 
                 if (existingSubmission) {
-                    document.getElementById('deleteSubmissionBtn').addEventListener('click', () => {
-                        delete shiftSubmissions[dateString];
-                        modal.classList.add('hidden');
-                        renderShiftSubmissionCalendar();
-                    });
+                    document.getElementById('deleteSubmissionBtn').addEventListener('click', shiftSubmissionModalHandlers.deleteHandler);
                 } else {
                     document.getElementById('deleteSubmissionBtn').style.display = 'none';
                 }
             }
 
+            // 送信中の状態を管理
+            let isSubmittingShift = false;
+
             async function saveShiftSubmission() {
+                if (isSubmittingShift) {
+                    console.log('既に送信中です。重複送信を防ぎます。');
+                    return;
+                }
+
                 if (!currentShiftPeriod || !currentUser) {
                     alert('シフト提出期間またはユーザー情報が取得できません。');
                     return;
@@ -1162,6 +1194,16 @@
                 if (submissions.length === 0) {
                     alert('シフトを入力してください。');
                     return;
+                }
+
+                // 送信開始
+                isSubmittingShift = true;
+                
+                // 送信ボタンを無効化
+                const submitBtn = document.getElementById('submitShiftBtn');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>送信中...';
                 }
 
                 // 最新の入力時間を保存（最後の提出データから）
@@ -1193,6 +1235,15 @@
                 } catch (error) {
                     console.error('Error saving shift submission:', error);
                     alert(`シフト提出に失敗しました: ${error.message}`);
+                } finally {
+                    // 送信完了
+                    isSubmittingShift = false;
+                    
+                    // 送信ボタンを有効化
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>シフト提出';
+                    }
                 }
             }
 

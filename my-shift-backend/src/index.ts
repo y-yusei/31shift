@@ -169,18 +169,27 @@ export default {
                 // 新しい提出を挿入
                 for (const submission of submissions) {
                     if (submission.submissionDate && submission.startTime && submission.endTime) {
-                        await env.DB.prepare(`
-                            INSERT INTO shift_submissions (period_id, user_id, submission_date, start_time, end_time, break_time, notes)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        `).bind(
-                            periodId, 
-                            userId, 
-                            submission.submissionDate, 
-                            submission.startTime, 
-                            submission.endTime, 
-                            submission.breakTime || '', 
-                            submission.notes || ''
-                        ).run();
+                        try {
+                            await env.DB.prepare(`
+                                INSERT INTO shift_submissions (period_id, user_id, submission_date, start_time, end_time, break_time, notes)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            `).bind(
+                                periodId, 
+                                userId, 
+                                submission.submissionDate, 
+                                submission.startTime, 
+                                submission.endTime, 
+                                submission.breakTime || '', 
+                                submission.notes || ''
+                            ).run();
+                        } catch (error) {
+                            // 重複エラーの場合は無視（既に存在する場合）
+                            if (error.message && error.message.includes('UNIQUE constraint failed')) {
+                                console.log(`重複した提出をスキップしました: ${submission.submissionDate}`);
+                                continue;
+                            }
+                            throw error;
+                        }
                     }
                 }
 
