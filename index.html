@@ -878,7 +878,7 @@
                 Object.keys(mainViews).forEach(key => mainViews[key].classList.toggle('hidden', key !== viewKey));
                 setActiveNavButton(viewKey);
                 
-                if (viewKey === 'shiftSubmission' || viewKey === 'shiftManagement') {
+                if (viewKey === 'shiftSubmission' || viewKey === 'shiftManagement' || viewKey === 'shiftWish') {
                     // シフト提出関連のビューの場合は、アクティブな期間を取得
                     try {
                         await fetchActiveShiftPeriod();
@@ -1580,6 +1580,13 @@
                 employeeFilter.innerHTML = '<option value="">全員表示</option>' + 
                     appState.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
 
+                // 初期日付を募集日初日に設定
+                if (currentShiftPeriod) {
+                    wishDisplayDate = new Date(currentShiftPeriod.start_date + "T00:00:00");
+                } else {
+                    wishDisplayDate = new Date();
+                }
+                
                 // 日付を設定
                 document.getElementById('wishDisplayDate').value = formatDate(wishDisplayDate);
 
