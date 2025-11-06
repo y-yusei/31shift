@@ -47,17 +47,34 @@ export default {
                 `).bind(month);
                 
                 const usersStmt = env.DB.prepare('SELECT * FROM users ORDER BY id');
-                const manualBreaksStmt = env.DB.prepare("SELECT * FROM manual_breaks WHERE strftime('%Y-%m', shift_date) = ?").bind(month);
-                const manualShortagesStmt = env.DB.prepare("SELECT * FROM manual_shortages WHERE strftime('%Y-%m', shift_date) = ?").bind(month);
+                // manual_shortagesテーブルは存在する場合のみ取得
+                let manualShortagesStmt;
+                try {
+                    manualShortagesStmt = env.DB.prepare("SELECT * FROM manual_shortages WHERE strftime('%Y-%m', shift_date) = ?").bind(month);
+                } catch (e) {
+                    manualShortagesStmt = null;
+                }
 
-                const [shiftsResult, usersResult, manualBreaksResult, manualShortagesResult] = await Promise.all([
-                    shiftsStmt.all(), usersStmt.all(), manualBreaksStmt.all(), manualShortagesStmt.all()
+                const [shiftsResult, usersResult, manualShortagesResult] = await Promise.all([
+                    shiftsStmt.all(), 
+                    usersStmt.all(), 
+                    manualShortagesStmt ? manualShortagesStmt.all() : Promise.resolve({ results: [] })
                 ]);
+
+                // shiftsテーブルからbreak_timeを日付ごとに集約
+                const manualBreaks: Record<string, string> = {};
+                (shiftsResult.results || []).forEach((shift: any) => {
+                    const date = shift.shiftDate as string;
+                    // 同じ日付で最初に見つかったbreak_timeを使用（全レコードで同じ値のはず）
+                    if (shift.breakTime && !manualBreaks[date]) {
+                        manualBreaks[date] = shift.breakTime;
+                    }
+                });
 
                 const data = {
                     users: usersResult.results,
                     shifts: (shiftsResult.results || []).reduce<Record<string, any[]>>((acc, shift) => { const date = shift.shiftDate as string; if (!acc[date]) acc[date] = []; acc[date].push(shift); return acc; }, {}),
-                    manualBreaks: (manualBreaksResult.results || []).reduce((acc, item: any) => { acc[item.shift_date as string] = item.break_text; return acc; }, {}),
+                    manualBreaks: manualBreaks,
                     manualShortages: (manualShortagesResult.results || []).reduce((acc, item: any) => { acc[item.shift_date as string] = item.shortage_text; return acc; }, {}),
                 };
                 return withCors(new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
@@ -82,13 +99,21 @@ export default {
                 if (!date) return withCors(new Response('Date is required', { status: 400 }));
                 
                 try {
+                    // 休憩時間は該当日付の全シフトレコードのbreak_timeカラムを更新
                     if(breaks !== undefined) {
-                        const breaksResult = await env.DB.prepare('INSERT OR REPLACE INTO manual_breaks (shift_date, break_text) VALUES (?, ?)').bind(date, breaks || '').run();
+                        const breaksResult = await env.DB.prepare('UPDATE shifts SET break_time = ? WHERE shift_date = ?').bind(breaks || '', date).run();
                         console.log('休憩時間保存結果:', breaksResult);
                     }
+                    // 不足時間はmanual_shortagesテーブルに保存（shiftsテーブルに該当カラムがない場合）
                     if(shortages !== undefined) {
-                        const shortagesResult = await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages || '').run();
-                        console.log('不足時間保存結果:', shortagesResult);
+                        // まずテーブルの存在を確認してから保存
+                        try {
+                            const shortagesResult = await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages || '').run();
+                            console.log('不足時間保存結果:', shortagesResult);
+                        } catch (e: any) {
+                            // manual_shortagesテーブルが存在しない場合は無視
+                            console.warn('manual_shortagesテーブルが存在しません:', e.message);
+                        }
                     }
 
                     return withCors(new Response(JSON.stringify({ success: true, date, breaks, shortages }), { 
