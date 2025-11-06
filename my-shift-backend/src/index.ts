@@ -66,14 +66,26 @@ export default {
                 (shiftsResult.results || []).forEach((shift: any) => {
                     const date = shift.shiftDate as string;
                     // 同じ日付で最初に見つかったbreak_timeを使用（全レコードで同じ値のはず）
+                    // user_id=0のダミーレコードも含める
                     if (shift.breakTime && !manualBreaks[date]) {
                         manualBreaks[date] = shift.breakTime;
                     }
                 });
+                console.log('集約されたmanualBreaks:', manualBreaks);
+
+                // user_id=0のダミーレコードを除外してシフトデータを構築
+                const shiftsData = (shiftsResult.results || []).reduce<Record<string, any[]>>((acc, shift) => { 
+                    // user_id=0のダミーレコードは除外（休憩時間保存用）
+                    if (shift.userId === 0) return acc;
+                    const date = shift.shiftDate as string; 
+                    if (!acc[date]) acc[date] = []; 
+                    acc[date].push(shift); 
+                    return acc; 
+                }, {});
 
                 const data = {
                     users: usersResult.results,
-                    shifts: (shiftsResult.results || []).reduce<Record<string, any[]>>((acc, shift) => { const date = shift.shiftDate as string; if (!acc[date]) acc[date] = []; acc[date].push(shift); return acc; }, {}),
+                    shifts: shiftsData,
                     manualBreaks: manualBreaks,
                     manualShortages: (manualShortagesResult.results || []).reduce((acc, item: any) => { acc[item.shift_date as string] = item.shortage_text; return acc; }, {}),
                 };
@@ -101,8 +113,22 @@ export default {
                 try {
                     // 休憩時間は該当日付の全シフトレコードのbreak_timeカラムを更新
                     if(breaks !== undefined) {
-                        const breaksResult = await env.DB.prepare('UPDATE shifts SET break_time = ? WHERE shift_date = ?').bind(breaks || '', date).run();
-                        console.log('休憩時間保存結果:', breaksResult);
+                        // まず該当日付にuser_id=0のダミーレコードが存在するか確認
+                        const dummyRecord = await env.DB.prepare('SELECT * FROM shifts WHERE shift_date = ? AND user_id = 0').bind(date).first();
+                        
+                        if (dummyRecord) {
+                            // ダミーレコードが存在する場合、break_timeを更新
+                            await env.DB.prepare('UPDATE shifts SET break_time = ? WHERE shift_date = ? AND user_id = 0').bind(breaks || '', date).run();
+                            console.log('ダミーレコードの休憩時間を更新');
+                        } else {
+                            // ダミーレコードが存在しない場合、新規作成
+                            await env.DB.prepare('INSERT INTO shifts (user_id, shift_date, time, break_time) VALUES (0, ?, ?, ?)').bind(date, '', breaks || '').run();
+                            console.log('ダミーレコードを新規作成して休憩時間を保存');
+                        }
+                        
+                        // 該当日付の通常のシフトレコード（user_id != 0）のbreak_timeも更新
+                        const updateResult = await env.DB.prepare('UPDATE shifts SET break_time = ? WHERE shift_date = ? AND user_id != 0').bind(breaks || '', date).run();
+                        console.log('通常シフトレコードの休憩時間更新結果:', updateResult);
                     }
                     // 不足時間はmanual_shortagesテーブルに保存（shiftsテーブルに該当カラムがない場合）
                     if(shortages !== undefined) {
