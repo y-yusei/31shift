@@ -589,6 +589,17 @@
                     const result = await response.json();
                     console.log('API成功レスポンス:', result);
                     
+                    // APIレスポンスにエラーが含まれている場合
+                    if (result.success === false || result.error) {
+                        console.error('APIからエラーが返されました:', result);
+                        throw new Error(result.error || result.message || 'APIエラーが発生しました');
+                    }
+                    
+                    // 保存されたデータを確認
+                    if (result.breaks !== undefined) {
+                        console.log('APIから返された休憩時間:', result.breaks);
+                    }
+                    
                     // ローカル状態を更新（空の文字列も保存）
                     appState.manualBreaks[date] = breaks || '';
                     appState.manualShortages[date] = shortages || '';
@@ -606,6 +617,9 @@
                         loadedMonths[monthKey] = false; // キャッシュをクリア
                     }
                     await fetchDataForMonth(dateObj, true); // 強制再取得
+                    
+                    // 再取得後のデータを確認
+                    console.log('再取得後の休憩時間データ:', appState.manualBreaks[date]);
                     
                     console.log('ローカル状態更新完了:', { breaks: appState.manualBreaks[date], shortages: appState.manualShortages[date] });
                     return true;

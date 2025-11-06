@@ -81,14 +81,31 @@ export default {
                 const { date, breaks, shortages } = await request.json<any>();
                 if (!date) return withCors(new Response('Date is required', { status: 400 }));
                 
-                if(breaks !== undefined) {
-                    await env.DB.prepare('INSERT OR REPLACE INTO manual_breaks (shift_date, break_text) VALUES (?, ?)').bind(date, breaks).run();
-                }
-                if(shortages !== undefined) {
-                    await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages).run();
-                }
+                try {
+                    if(breaks !== undefined) {
+                        const breaksResult = await env.DB.prepare('INSERT OR REPLACE INTO manual_breaks (shift_date, break_text) VALUES (?, ?)').bind(date, breaks || '').run();
+                        console.log('休憩時間保存結果:', breaksResult);
+                    }
+                    if(shortages !== undefined) {
+                        const shortagesResult = await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages || '').run();
+                        console.log('不足時間保存結果:', shortagesResult);
+                    }
 
-                return withCors(new Response(JSON.stringify({ success: true }), { status: 200 }));
+                    return withCors(new Response(JSON.stringify({ success: true, date, breaks, shortages }), { 
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                } catch (dbError: any) {
+                    console.error('データベースエラー:', dbError);
+                    return withCors(new Response(JSON.stringify({ 
+                        success: false, 
+                        error: dbError.message,
+                        details: dbError.toString()
+                    }), { 
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                }
             
             } else if (url.pathname === '/api/login' && request.method === 'POST') {
                 const { username, password } = await request.json<any>();
