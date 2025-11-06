@@ -1012,8 +1012,8 @@
                 }
                 dateHeader.innerHTML = headerHtml;
                 
-                // managerを上位に表示するようにソート
                 const displayableUsers = [...appState.users].sort((a, b) => {
+                    // 管理者を上に表示
                     if (a.role === 'manager' && b.role !== 'manager') return -1;
                     if (a.role !== 'manager' && b.role === 'manager') return 1;
                     // 同じrole内ではIDの昇順
