@@ -556,7 +556,7 @@
             
             async function updateManualData(date, breaks, shortages) {
                 try {
-                    console.log('手動データ更新リクエスト:', { date, breaks, shortages });
+                    console.log('手動データ更新リクエスト:', { date, breaks, shortages, breaksType: typeof breaks, breaksLength: breaks ? breaks.length : 0 });
                     
                     // データの検証
                     if (!date) {
@@ -564,10 +564,18 @@
                         throw new Error('日付が不足しています');
                     }
                     
+                    // 空の文字列も明示的に送信（削除のため）
+                    const requestBody = { 
+                        date, 
+                        breaks: breaks || '', 
+                        shortages: shortages || '' 
+                    };
+                    console.log('送信するデータ:', JSON.stringify(requestBody));
+                    
                     const response = await fetch(`${API_BASE_URL}/api/update-manual-data`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ date, breaks, shortages })
+                        body: JSON.stringify(requestBody)
                     });
                     
                     console.log('APIレスポンス:', response.status, response.statusText);
@@ -581,9 +589,15 @@
                     const result = await response.json();
                     console.log('API成功レスポンス:', result);
                     
-                    // ローカル状態を更新
-                    appState.manualBreaks[date] = breaks;
-                    appState.manualShortages[date] = shortages;
+                    // ローカル状態を更新（空の文字列も保存）
+                    appState.manualBreaks[date] = breaks || '';
+                    appState.manualShortages[date] = shortages || '';
+                    
+                    console.log('ローカル状態を更新:', { 
+                        date, 
+                        breaks: appState.manualBreaks[date], 
+                        shortages: appState.manualShortages[date] 
+                    });
                     
                     // データを再取得して最新状態を反映（キャッシュをクリア）
                     const dateObj = new Date(date + 'T00:00:00');
@@ -602,9 +616,19 @@
                 }
             }
             
+            // 保存処理の重複実行を防ぐためのフラグ
+            const savingFlags = new Set();
+            
             async function handleBulkShiftChange(event) {
                 const input = event.target;
-                if (!input.matches('input[type="text"]')) return;
+                if (!input || !input.matches('input[type="text"]')) return;
+                
+                // 重複実行を防ぐ
+                const saveKey = `${input.dataset.date}-${input.className}`;
+                if (savingFlags.has(saveKey)) {
+                    console.log('保存処理が既に実行中です:', saveKey);
+                    return;
+                }
 
                 // オートフォーマット & バリデーション（シフトセルと休憩時間入力）
                 if (input.matches('.bulk-cell')) {
@@ -619,17 +643,28 @@
                 } else if (input.matches('.break-time-input')) {
                     // 休憩時間入力もシフト時間と同じ形式で正規化
                     const normalized = normalizeShiftTimeInput(input.value);
-                    if (normalized !== input.value) input.value = normalized;
+                    if (normalized !== input.value) {
+                        input.value = normalized;
+                        console.log('休憩時間を正規化:', input.value, '→', normalized);
+                    }
                 }
 
                 const date = input.dataset.date;
+                if (!date) {
+                    console.error('日付が取得できません:', input);
+                    return;
+                }
+                
                 let success = false;
                 
                 if (input.matches('input[data-user-id]')) {
                     const userId = parseInt(input.dataset.userId, 10);
                     const time = input.value.trim();
+                    console.log('シフト更新:', { userId, date, time });
                     success = await updateShift({ userId, date, time });
                 } else if (input.matches('.break-time-input') || input.matches('.shortage-input')) {
+                    savingFlags.add(saveKey);
+                    
                     const breakInput = mainViews.bulkShift.querySelector(`.break-time-input[data-date="${date}"]`);
                     const shortageInput = mainViews.bulkShift.querySelector(`.shortage-input[data-date="${date}"]`);
                     
@@ -645,7 +680,11 @@
                     }
                     
                     const shortages = shortageInput ? shortageInput.value.trim() : '';
+                    
+                    console.log('休憩・不足時間更新:', { date, breaks, shortages });
                     success = await updateManualData(date, breaks, shortages);
+                    
+                    savingFlags.delete(saveKey);
                 }
                 
                 if(success) {
@@ -1013,6 +1052,7 @@
             updateUserInfo();
             Object.keys(navButtons).forEach(key => navButtons[key].addEventListener('click', () => switchView(key)));
             mainViews.bulkShift.addEventListener('change', handleBulkShiftChange);
+            mainViews.bulkShift.addEventListener('blur', handleBulkShiftChange, true); // blurイベントも追加（スマホ対応）
             mainViews.bulkShift.addEventListener('keydown', handleBulkShiftKeyNavigation);
             mainViews.bulkShift.addEventListener('paste', handleBulkShiftPaste, true);
             document.getElementById('prevMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); fetchDataForMonth(calendarDisplayDate); });
