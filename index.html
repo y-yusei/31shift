@@ -363,25 +363,61 @@
                 d.setHours(h, m, 0, 0);
                 return d;
             }
-            // 休憩時間を分単位に変換する関数（「60分」「1時間」「60」「1:00」などの形式に対応）
-            function parseBreakTimeToMinutes(breakTimeStr) {
-                if (!breakTimeStr || !breakTimeStr.trim()) return 0;
+            // 休憩時間を解析する関数（時間範囲形式「17:00-18:00」に対応）
+            function parseBreakTime(breakTimeStr, baseDate) {
+                if (!breakTimeStr || !breakTimeStr.trim()) return null;
                 const str = breakTimeStr.trim();
+                
+                // 時間範囲形式（例：「17:00-18:00」）をチェック
+                if (str.includes(' - ') || str.includes('-')) {
+                    const normalized = normalizeShiftTimeInput(str);
+                    if (normalized && normalized.includes(' - ')) {
+                        const [startStr, endStr] = normalized.split(' - ');
+                        const startDate = parseTimeToDate(startStr.trim(), baseDate);
+                        const endDate = parseTimeToDate(endStr.trim(), baseDate);
+                        if (startDate && endDate) {
+                            return {
+                                start: startDate,
+                                end: endDate,
+                                minutes: (endDate - startDate) / (1000 * 60)
+                            };
+                        }
+                    }
+                }
+                
+                // 旧形式のサポート（後方互換性のため）
                 // 「分」を削除
                 const withoutUnit = str.replace(/分/g, '').trim();
                 // 「時間」を分に変換
                 if (withoutUnit.includes('時間')) {
                     const [hours, minutes] = withoutUnit.split('時間').map(s => parseInt(s.trim()) || 0);
-                    return hours * 60 + (minutes || 0);
+                    const totalMinutes = hours * 60 + (minutes || 0);
+                    return {
+                        start: null,
+                        end: null,
+                        minutes: totalMinutes
+                    };
                 }
-                // 「:」が含まれている場合（例：「1:00」）
-                if (withoutUnit.includes(':')) {
+                // 「:」が含まれている場合（例：「1:00」）- これは時間の長さとして扱う
+                if (withoutUnit.includes(':') && !withoutUnit.includes('-')) {
                     const [h, m] = withoutUnit.split(':').map(s => parseInt(s.trim()) || 0);
-                    return h * 60 + m;
+                    return {
+                        start: null,
+                        end: null,
+                        minutes: h * 60 + m
+                    };
                 }
-                // 数値のみの場合（例：「60」）
+                // 数値のみの場合（例：「60」）- 分単位として扱う
                 const num = parseInt(withoutUnit);
-                return isNaN(num) ? 0 : num;
+                if (!isNaN(num)) {
+                    return {
+                        start: null,
+                        end: null,
+                        minutes: num
+                    };
+                }
+                
+                return null;
             }
             function isValidShiftTimeFormat(str) {
                 if (!str) return true;
@@ -562,7 +598,7 @@
                 const input = event.target;
                 if (!input.matches('input[type="text"]')) return;
 
-                // オートフォーマット & バリデーション（シフトセルのみ）
+                // オートフォーマット & バリデーション（シフトセルと休憩時間入力）
                 if (input.matches('.bulk-cell')) {
                     const normalized = normalizeShiftTimeInput(input.value);
                     if (normalized !== input.value) input.value = normalized;
@@ -572,6 +608,10 @@
                     } else {
                         input.style.outline = '';
                     }
+                } else if (input.matches('.break-time-input')) {
+                    // 休憩時間入力もシフト時間と同じ形式で正規化
+                    const normalized = normalizeShiftTimeInput(input.value);
+                    if (normalized !== input.value) input.value = normalized;
                 }
 
                 const date = input.dataset.date;
@@ -761,7 +801,7 @@
                 
                 // 休憩時間を取得
                 const breakTimeStr = appState.manualBreaks[dateString] || '';
-                const breakMinutes = parseBreakTimeToMinutes(breakTimeStr);
+                const breakTimeInfo = parseBreakTime(breakTimeStr, chartDisplayDate);
 
                 // グラフデータを生成（休憩時間を考慮）
                 const chartDatasetData = [];
@@ -775,10 +815,18 @@
                     const workMinutes = (mainEndDate - mainStartDate) / (1000 * 60);
                     
                     // 7時間（420分）を超える場合、かつ休憩時間が入力されている場合のみ休憩を適用
-                    if (workMinutes > 420 && breakMinutes > 0) {
-                        // 休憩開始時間（勤務時間の中央付近）
-                        const breakStartDate = new Date(mainStartDate.getTime() + (workMinutes - breakMinutes) / 2 * 60 * 1000);
-                        const breakEndDate = new Date(breakStartDate.getTime() + breakMinutes * 60 * 1000);
+                    if (workMinutes > 420 && breakTimeInfo && breakTimeInfo.minutes > 0) {
+                        let breakStartDate, breakEndDate;
+                        
+                        // 時間範囲形式の場合（開始時刻・終了時刻が指定されている）
+                        if (breakTimeInfo.start && breakTimeInfo.end) {
+                            breakStartDate = breakTimeInfo.start;
+                            breakEndDate = breakTimeInfo.end;
+                        } else {
+                            // 旧形式（分単位のみ）の場合、勤務時間の中央付近に配置
+                            breakStartDate = new Date(mainStartDate.getTime() + (workMinutes - breakTimeInfo.minutes) / 2 * 60 * 1000);
+                            breakEndDate = new Date(breakStartDate.getTime() + breakTimeInfo.minutes * 60 * 1000);
+                        }
                         
                         // 勤務時間を2つに分割
                         // 1. 開始から休憩開始まで
