@@ -2,8 +2,16 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>31shiftシステム</title>
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="description" content="シフト管理システム">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="31shift">
+    <link rel="apple-touch-icon" href="img/icon.png">
+    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -93,6 +101,14 @@
         .bulk-shift-table tfoot th { background-color: var(--bg-accent); position: sticky; left: 0; z-index: 10;}
         .bulk-shift-table input[type="text"] { border: none; }
         
+        /* 入力フィールドのフォントサイズ設定（通常時は小さく、フォーカス時は16px以上） */
+        .bulk-shift-table input[type="text"] {
+            font-size: 0.875rem; /* 14px - 通常時 */
+        }
+        .bulk-shift-table input[type="text"]:focus {
+            font-size: 1rem !important; /* 16px - フォーカス時は16px以上でズームを防ぐ */
+        }
+        
         /* スマホ対応の一括シフトテーブル */
         @media (max-width: 768px) {
             .bulk-shift-table {
@@ -103,9 +119,12 @@
                 min-width: 100px;
             }
             .bulk-shift-table input[type="text"] {
-                font-size: 0.7rem;
+                font-size: 0.75rem; /* 12px - 通常時は小さく */
                 padding: 0.2rem;
                 min-width: 95px;
+            }
+            .bulk-shift-table input[type="text"]:focus {
+                font-size: 1rem !important; /* 16px - フォーカス時は16px以上でズームを防ぐ */
             }
             .bulk-shift-table tbody th {
                 min-width: 110px;
@@ -123,9 +142,12 @@
                 min-width: 120px;
             }
             .bulk-shift-table input[type="text"] {
-                font-size: 0.8rem;
+                font-size: 0.875rem; /* 14px - 通常時 */
                 padding: 0.3rem;
                 min-width: 115px;
+            }
+            .bulk-shift-table input[type="text"]:focus {
+                font-size: 1rem !important; /* 16px - フォーカス時は16px以上でズームを防ぐ */
             }
         }
         
@@ -341,6 +363,62 @@
                 d.setHours(h, m, 0, 0);
                 return d;
             }
+            // 休憩時間を解析する関数（時間範囲形式「17:00-18:00」に対応）
+            function parseBreakTime(breakTimeStr, baseDate) {
+                if (!breakTimeStr || !breakTimeStr.trim()) return null;
+                const str = breakTimeStr.trim();
+                
+                // 時間範囲形式（例：「17:00-18:00」）をチェック
+                if (str.includes(' - ') || str.includes('-')) {
+                    const normalized = normalizeShiftTimeInput(str);
+                    if (normalized && normalized.includes(' - ')) {
+                        const [startStr, endStr] = normalized.split(' - ');
+                        const startDate = parseTimeToDate(startStr.trim(), baseDate);
+                        const endDate = parseTimeToDate(endStr.trim(), baseDate);
+                        if (startDate && endDate) {
+                            return {
+                                start: startDate,
+                                end: endDate,
+                                minutes: (endDate - startDate) / (1000 * 60)
+                            };
+                        }
+                    }
+                }
+                
+                // 旧形式のサポート（後方互換性のため）
+                // 「分」を削除
+                const withoutUnit = str.replace(/分/g, '').trim();
+                // 「時間」を分に変換
+                if (withoutUnit.includes('時間')) {
+                    const [hours, minutes] = withoutUnit.split('時間').map(s => parseInt(s.trim()) || 0);
+                    const totalMinutes = hours * 60 + (minutes || 0);
+                    return {
+                        start: null,
+                        end: null,
+                        minutes: totalMinutes
+                    };
+                }
+                // 「:」が含まれている場合（例：「1:00」）- これは時間の長さとして扱う
+                if (withoutUnit.includes(':') && !withoutUnit.includes('-')) {
+                    const [h, m] = withoutUnit.split(':').map(s => parseInt(s.trim()) || 0);
+                    return {
+                        start: null,
+                        end: null,
+                        minutes: h * 60 + m
+                    };
+                }
+                // 数値のみの場合（例：「60」）- 分単位として扱う
+                const num = parseInt(withoutUnit);
+                if (!isNaN(num)) {
+                    return {
+                        start: null,
+                        end: null,
+                        minutes: num
+                    };
+                }
+                
+                return null;
+            }
             function isValidShiftTimeFormat(str) {
                 if (!str) return true;
                 return /^\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$/.test(str.trim());
@@ -388,12 +466,12 @@
             }
             
             // --- Data Fetching & State ---
-            async function fetchDataForMonth(date) {
+            async function fetchDataForMonth(date, forceRefresh = false) {
                 const year = date.getFullYear();
                 const month = ('0' + (date.getMonth() + 1)).slice(-2);
                 const monthKey = `${year}-${month}`;
                 
-                if (!loadedMonths[monthKey]) {
+                if (!loadedMonths[monthKey] || forceRefresh) {
                     try {
                         const response = await fetch(`${API_BASE_URL}/api/data?month=${year}-${month}`);
                         if (!response.ok) throw new Error('API Error');
@@ -401,8 +479,15 @@
                         
                         appState.users = data.users || [];
                         appState.shifts = { ...appState.shifts, ...data.shifts };
+                        console.log('取得したデータ:', {
+                            shifts: data.shifts,
+                            manualBreaks: data.manualBreaks,
+                            manualShortages: data.manualShortages
+                        });
                         appState.manualBreaks = { ...appState.manualBreaks, ...data.manualBreaks };
                         appState.manualShortages = { ...appState.manualShortages, ...data.manualShortages };
+                        console.log('更新後のappState.manualBreaks:', appState.manualBreaks);
+                        console.log('更新後のappState.manualBreaksのキー:', Object.keys(appState.manualBreaks));
                         
                         loadedMonths[monthKey] = true;
                     } catch (error) {
@@ -478,7 +563,7 @@
             
             async function updateManualData(date, breaks, shortages) {
                 try {
-                    console.log('手動データ更新リクエスト:', { date, breaks, shortages });
+                    console.log('手動データ更新リクエスト:', { date, breaks, shortages, breaksType: typeof breaks, breaksLength: breaks ? breaks.length : 0 });
                     
                     // データの検証
                     if (!date) {
@@ -486,10 +571,18 @@
                         throw new Error('日付が不足しています');
                     }
                     
+                    // 空の文字列も明示的に送信（削除のため）
+                    const requestBody = { 
+                        date, 
+                        breaks: breaks || '', 
+                        shortages: shortages || '' 
+                    };
+                    console.log('送信するデータ:', JSON.stringify(requestBody));
+                    
                     const response = await fetch(`${API_BASE_URL}/api/update-manual-data`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ date, breaks, shortages })
+                        body: JSON.stringify(requestBody)
                     });
                     
                     console.log('APIレスポンス:', response.status, response.statusText);
@@ -503,9 +596,37 @@
                     const result = await response.json();
                     console.log('API成功レスポンス:', result);
                     
-                    // ローカル状態を更新
-                    appState.manualBreaks[date] = breaks;
-                    appState.manualShortages[date] = shortages;
+                    // APIレスポンスにエラーが含まれている場合
+                    if (result.success === false || result.error) {
+                        console.error('APIからエラーが返されました:', result);
+                        throw new Error(result.error || result.message || 'APIエラーが発生しました');
+                    }
+                    
+                    // 保存されたデータを確認
+                    if (result.breaks !== undefined) {
+                        console.log('APIから返された休憩時間:', result.breaks);
+                    }
+                    
+                    // ローカル状態を更新（空の文字列も保存）
+                    appState.manualBreaks[date] = breaks || '';
+                    appState.manualShortages[date] = shortages || '';
+                    
+                    console.log('ローカル状態を更新:', { 
+                        date, 
+                        breaks: appState.manualBreaks[date], 
+                        shortages: appState.manualShortages[date] 
+                    });
+                    
+                    // データを再取得して最新状態を反映（キャッシュをクリア）
+                    const dateObj = new Date(date + 'T00:00:00');
+                    const monthKey = `${dateObj.getFullYear()}-${('0' + (dateObj.getMonth() + 1)).slice(-2)}`;
+                    if (loadedMonths[monthKey]) {
+                        loadedMonths[monthKey] = false; // キャッシュをクリア
+                    }
+                    await fetchDataForMonth(dateObj, true); // 強制再取得
+                    
+                    // 再取得後のデータを確認
+                    console.log('再取得後の休憩時間データ:', appState.manualBreaks[date]);
                     
                     console.log('ローカル状態更新完了:', { breaks: appState.manualBreaks[date], shortages: appState.manualShortages[date] });
                     return true;
@@ -516,11 +637,26 @@
                 }
             }
             
+            // 保存処理の重複実行を防ぐためのフラグとタイムスタンプ
+            const savingFlags = new Map(); // key: saveKey, value: timestamp
+            
             async function handleBulkShiftChange(event) {
                 const input = event.target;
-                if (!input.matches('input[type="text"]')) return;
+                if (!input || !input.matches('input[type="text"]')) return;
+                
+                // 重複実行を防ぐ（同じ入力フィールドで500ms以内の重複実行を防ぐ）
+                const saveKey = `${input.dataset.date}-${input.className}`;
+                const now = Date.now();
+                const lastSaveTime = savingFlags.get(saveKey);
+                
+                if (lastSaveTime && (now - lastSaveTime) < 500) {
+                    console.log('保存処理が既に実行中です（重複防止）:', saveKey);
+                    return;
+                }
+                
+                savingFlags.set(saveKey, now);
 
-                // オートフォーマット & バリデーション（シフトセルのみ）
+                // オートフォーマット & バリデーション（シフトセルと休憩時間入力）
                 if (input.matches('.bulk-cell')) {
                     const normalized = normalizeShiftTimeInput(input.value);
                     if (normalized !== input.value) input.value = normalized;
@@ -530,21 +666,57 @@
                     } else {
                         input.style.outline = '';
                     }
+                } else if (input.matches('.break-time-input')) {
+                    // 休憩時間入力もシフト時間と同じ形式で正規化
+                    const normalized = normalizeShiftTimeInput(input.value);
+                    if (normalized !== input.value) {
+                        input.value = normalized;
+                        console.log('休憩時間を正規化:', input.value, '→', normalized);
+                    }
                 }
 
                 const date = input.dataset.date;
+                if (!date) {
+                    console.error('日付が取得できません:', input);
+                    return;
+                }
+                
                 let success = false;
                 
                 if (input.matches('input[data-user-id]')) {
                     const userId = parseInt(input.dataset.userId, 10);
                     const time = input.value.trim();
+                    console.log('シフト更新:', { userId, date, time });
                     success = await updateShift({ userId, date, time });
                 } else if (input.matches('.break-time-input') || input.matches('.shortage-input')) {
                     const breakInput = mainViews.bulkShift.querySelector(`.break-time-input[data-date="${date}"]`);
                     const shortageInput = mainViews.bulkShift.querySelector(`.shortage-input[data-date="${date}"]`);
-                    const breaks = breakInput ? breakInput.value.trim() : '';
+                    
+                    // 休憩時間は正規化された値を保存
+                    let breaks = breakInput ? breakInput.value.trim() : '';
+                    if (breaks && breakInput) {
+                        // 再度正規化してから保存（念のため）
+                        const normalized = normalizeShiftTimeInput(breaks);
+                        if (normalized !== breaks) {
+                            breakInput.value = normalized;
+                            breaks = normalized;
+                        }
+                    }
+                    
                     const shortages = shortageInput ? shortageInput.value.trim() : '';
+                    
+                    console.log('休憩・不足時間更新:', { date, breaks, shortages });
                     success = await updateManualData(date, breaks, shortages);
+                    
+                    // 保存完了後、少し遅延してからフラグをクリア（重複防止のため）
+                    setTimeout(() => {
+                        savingFlags.delete(saveKey);
+                    }, 1000);
+                } else {
+                    // シフト更新の場合もフラグをクリア
+                    setTimeout(() => {
+                        savingFlags.delete(saveKey);
+                    }, 1000);
                 }
                 
                 if(success) {
@@ -716,17 +888,65 @@
                     });
 
                 const yLabels = sortedShifts.map(s => s.fullName);
+                
+                // 休憩時間を取得
+                const breakTimeStr = appState.manualBreaks[dateString] || '';
+                const breakTimeInfo = parseBreakTime(breakTimeStr, chartDisplayDate);
 
-                const chartDatasetData = sortedShifts.map(shift => {
+                // グラフデータを生成（休憩時間を考慮）
+                const chartDatasetData = [];
+                sortedShifts.forEach(shift => {
                     const [startStr, endStr] = shift.time.split(' - ');
                     const mainStartDate = parseTimeToDate(startStr, chartDisplayDate);
                     const mainEndDate = parseTimeToDate(endStr, chartDisplayDate);
-                    if(!mainStartDate || !mainEndDate) return null;
-                    return {
-                        x: [mainStartDate.getTime(), mainEndDate.getTime()], y: shift.fullName, originalShift: shift,
-                        bgColor: shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)'
-                    };
-                }).filter(Boolean);
+                    if(!mainStartDate || !mainEndDate) return;
+                    
+                    // 勤務時間を分単位で計算
+                    const workMinutes = (mainEndDate - mainStartDate) / (1000 * 60);
+                    
+                    // 7時間（420分）を超える場合、かつ休憩時間が入力されている場合のみ休憩を適用
+                    if (workMinutes > 420 && breakTimeInfo && breakTimeInfo.minutes > 0) {
+                        let breakStartDate, breakEndDate;
+                        
+                        // 時間範囲形式の場合（開始時刻・終了時刻が指定されている）
+                        if (breakTimeInfo.start && breakTimeInfo.end) {
+                            breakStartDate = breakTimeInfo.start;
+                            breakEndDate = breakTimeInfo.end;
+                        } else {
+                            // 旧形式（分単位のみ）の場合、勤務時間の中央付近に配置
+                            breakStartDate = new Date(mainStartDate.getTime() + (workMinutes - breakTimeInfo.minutes) / 2 * 60 * 1000);
+                            breakEndDate = new Date(breakStartDate.getTime() + breakTimeInfo.minutes * 60 * 1000);
+                        }
+                        
+                        // 勤務時間を2つに分割
+                        // 1. 開始から休憩開始まで
+                        chartDatasetData.push({
+                            x: [mainStartDate.getTime(), breakStartDate.getTime()],
+                            y: shift.fullName,
+                            originalShift: shift,
+                            bgColor: shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)',
+                            isBreak: false
+                        });
+                        
+                        // 2. 休憩終了から終了まで
+                        chartDatasetData.push({
+                            x: [breakEndDate.getTime(), mainEndDate.getTime()],
+                            y: shift.fullName,
+                            originalShift: shift,
+                            bgColor: shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)',
+                            isBreak: false
+                        });
+                    } else {
+                        // 休憩を適用しない場合（通常の表示）
+                        chartDatasetData.push({
+                            x: [mainStartDate.getTime(), mainEndDate.getTime()],
+                            y: shift.fullName,
+                            originalShift: shift,
+                            bgColor: shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)',
+                            isBreak: false
+                        });
+                    }
+                });
                 
                 const chartMinTime = new Date(chartDisplayDate); chartMinTime.setHours(9,0,0,0); 
                 const chartMaxTime = new Date(chartDisplayDate); chartMaxTime.setHours(21,0,0,0); 
@@ -749,7 +969,14 @@
                                     label: function(context) {
                                         const start = new Date(context.raw.x[0]);
                                         const end = new Date(context.raw.x[1]);
-                                        return `${context.raw.originalShift.fullName}: ${formatTime(start)} - ${formatTime(end)}`;
+                                        const workMinutes = (end - start) / (1000 * 60);
+                                        const hours = Math.floor(workMinutes / 60);
+                                        const minutes = workMinutes % 60;
+                                        let label = `${context.raw.originalShift.fullName}: ${formatTime(start)} - ${formatTime(end)}`;
+                                        if (hours > 0 || minutes > 0) {
+                                            label += ` (${hours}時間${minutes > 0 ? minutes + '分' : ''})`;
+                                        }
+                                        return label;
                                     }
                                 }
                             }
@@ -790,13 +1017,13 @@
                     if (a.role === 'manager' && b.role !== 'manager') return -1;
                     if (a.role !== 'manager' && b.role === 'manager') return 1;
                     // 同じrole内ではIDの昇順
-                    return a.id - b.id;
+                    return (a.id ?? 0) - (b.id ?? 0);
                 });
                 displayableUsers.forEach(user => {
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
                         const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
-                        rowHtml += `<td class="p-0"><input type="text" value="${shift && shift.time && shift.time.trim() ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="bulk-cell w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" style="border-color: var(--border-color);" placeholder=" " inputmode="numeric" autocomplete="off"></td>`;
+                        rowHtml += `<td class="p-0"><input type="text" value="${shift && shift.time && shift.time.trim() ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="bulk-cell w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center" style="border-color: var(--border-color);" placeholder=" " inputmode="numeric" autocomplete="off"></td>`;
                     });
                     rowHtml += '</tr>';
                     body.innerHTML += rowHtml;
@@ -805,14 +1032,14 @@
                 let breakTimesRowHtml = '<tr><th class="font-semibold p-2 text-left">休憩</th>'; 
                 days.forEach(dateString => {
                     const breakValue = appState.manualBreaks[dateString];
-                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${breakValue && breakValue.trim() ? breakValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder=" "></td>`;
+                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center" value="${breakValue && breakValue.trim() ? breakValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder=" "></td>`;
                 });
                 breakRow.innerHTML = breakTimesRowHtml;
 
                 let shortageRowHtml = '<tr><th class="font-semibold p-2 text-left">不足</th>'; 
                 days.forEach(dateString => {
                     const shortageValue = appState.manualShortages[dateString];
-                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center text-sm" value="${shortageValue && shortageValue.trim() ? shortageValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder=" "></td>`;
+                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center" value="${shortageValue && shortageValue.trim() ? shortageValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder=" "></td>`;
                 });
                 shortageRow.innerHTML = shortageRowHtml;
 
@@ -857,8 +1084,17 @@
             // --- イベントリスナー設定 ---
             updateUserInfo();
             Object.keys(navButtons).forEach(key => navButtons[key].addEventListener('click', () => switchView(key)));
+            // changeイベントのみ使用（blurはchangeと重複するため削除）
             mainViews.bulkShift.addEventListener('change', handleBulkShiftChange);
-            mainViews.bulkShift.addEventListener('keydown', handleBulkShiftKeyNavigation);
+            // スマホ対応：Enterキーで保存
+            mainViews.bulkShift.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.target.matches('.break-time-input, .shortage-input')) {
+                    e.preventDefault();
+                    handleBulkShiftChange(e);
+                } else {
+                    handleBulkShiftKeyNavigation(e);
+                }
+            });
             mainViews.bulkShift.addEventListener('paste', handleBulkShiftPaste, true);
             document.getElementById('prevMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); fetchDataForMonth(calendarDisplayDate); });
             document.getElementById('nextMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); fetchDataForMonth(calendarDisplayDate); });
@@ -881,6 +1117,19 @@
             switchView('calendar');
         }
     });
+
+    // --- Service Worker登録 ---
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then((registration) => {
+                    console.log('Service Worker登録成功:', registration.scope);
+                })
+                .catch((error) => {
+                    console.log('Service Worker登録失敗:', error);
+                });
+        });
+    }
     </script>
 </body>
 </html>

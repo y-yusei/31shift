@@ -38,26 +38,65 @@ export default {
 
                 const shiftsStmt = env.DB.prepare(`
                     SELECT 
-                        s.id, s.user_id as userId, u.name as fullName, u.role, 
-                        s.shift_date as shiftDate, s.time, s.break_time as breakTime, s.notes 
+                        s.id, s.user_id as userId, 
+                        COALESCE(u.name, '') as fullName, 
+                        COALESCE(u.role, '') as role, 
+                        s.shift_date as shiftDate, 
+                        s.time, 
+                        s.break_time as breakTime, 
+                        s.notes 
                     FROM 
                         shifts s LEFT JOIN users u ON s.user_id = u.id 
                     WHERE 
                         strftime('%Y-%m', s.shift_date) = ?
+                    ORDER BY s.shift_date, s.user_id
                 `).bind(month);
                 
                 const usersStmt = env.DB.prepare('SELECT * FROM users ORDER BY id');
-                const manualBreaksStmt = env.DB.prepare("SELECT * FROM manual_breaks WHERE strftime('%Y-%m', shift_date) = ?").bind(month);
-                const manualShortagesStmt = env.DB.prepare("SELECT * FROM manual_shortages WHERE strftime('%Y-%m', shift_date) = ?").bind(month);
+                // manual_shortagesテーブルは存在する場合のみ取得
+                let manualShortagesStmt;
+                try {
+                    manualShortagesStmt = env.DB.prepare("SELECT * FROM manual_shortages WHERE strftime('%Y-%m', shift_date) = ?").bind(month);
+                } catch (e) {
+                    manualShortagesStmt = null;
+                }
 
-                const [shiftsResult, usersResult, manualBreaksResult, manualShortagesResult] = await Promise.all([
-                    shiftsStmt.all(), usersStmt.all(), manualBreaksStmt.all(), manualShortagesStmt.all()
+                const [shiftsResult, usersResult, manualShortagesResult] = await Promise.all([
+                    shiftsStmt.all(), 
+                    usersStmt.all(), 
+                    manualShortagesStmt ? manualShortagesStmt.all() : Promise.resolve({ results: [] })
                 ]);
+
+                // shiftsテーブルからbreak_timeを日付ごとに集約
+                const manualBreaks: Record<string, string> = {};
+                (shiftsResult.results || []).forEach((shift: any) => {
+                    const date = shift.shiftDate as string;
+                    // 同じ日付で最初に見つかったbreak_timeを使用（全レコードで同じ値のはず）
+                    // user_id=0のダミーレコードも含める
+                    // break_timeがNULL、空文字列、undefinedの場合も処理する
+                    const breakTime = shift.breakTime;
+                    if (!manualBreaks[date] && breakTime !== null && breakTime !== undefined) {
+                        // 空文字列も含めて保存
+                        manualBreaks[date] = breakTime || '';
+                    }
+                });
+                console.log('shiftsResult.results:', shiftsResult.results);
+                console.log('集約されたmanualBreaks:', manualBreaks);
+
+                // user_id=0のダミーレコードを除外してシフトデータを構築
+                const shiftsData = (shiftsResult.results || []).reduce<Record<string, any[]>>((acc, shift) => { 
+                    // user_id=0のダミーレコードは除外（休憩時間保存用）
+                    if (shift.userId === 0) return acc;
+                    const date = shift.shiftDate as string; 
+                    if (!acc[date]) acc[date] = []; 
+                    acc[date].push(shift); 
+                    return acc; 
+                }, {});
 
                 const data = {
                     users: usersResult.results,
-                    shifts: (shiftsResult.results || []).reduce<Record<string, any[]>>((acc, shift) => { const date = shift.shiftDate as string; if (!acc[date]) acc[date] = []; acc[date].push(shift); return acc; }, {}),
-                    manualBreaks: (manualBreaksResult.results || []).reduce((acc, item: any) => { acc[item.shift_date as string] = item.break_text; return acc; }, {}),
+                    shifts: shiftsData,
+                    manualBreaks: manualBreaks,
                     manualShortages: (manualShortagesResult.results || []).reduce((acc, item: any) => { acc[item.shift_date as string] = item.shortage_text; return acc; }, {}),
                 };
                 return withCors(new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } }));
@@ -81,14 +120,53 @@ export default {
                 const { date, breaks, shortages } = await request.json<any>();
                 if (!date) return withCors(new Response('Date is required', { status: 400 }));
                 
-                if(breaks !== undefined) {
-                    await env.DB.prepare('INSERT OR REPLACE INTO manual_breaks (shift_date, break_text) VALUES (?, ?)').bind(date, breaks).run();
-                }
-                if(shortages !== undefined) {
-                    await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages).run();
-                }
+                try {
+                    // 休憩時間は該当日付の全シフトレコードのbreak_timeカラムを更新
+                    if(breaks !== undefined) {
+                        // まず該当日付にuser_id=0のダミーレコードが存在するか確認
+                        const dummyRecord = await env.DB.prepare('SELECT * FROM shifts WHERE shift_date = ? AND user_id = 0').bind(date).first();
+                        
+                        if (dummyRecord) {
+                            // ダミーレコードが存在する場合、break_timeを更新
+                            await env.DB.prepare('UPDATE shifts SET break_time = ? WHERE shift_date = ? AND user_id = 0').bind(breaks || '', date).run();
+                            console.log('ダミーレコードの休憩時間を更新');
+                        } else {
+                            // ダミーレコードが存在しない場合、新規作成
+                            await env.DB.prepare('INSERT INTO shifts (user_id, shift_date, time, break_time) VALUES (0, ?, ?, ?)').bind(date, '', breaks || '').run();
+                            console.log('ダミーレコードを新規作成して休憩時間を保存');
+                        }
+                        
+                        // 該当日付の通常のシフトレコード（user_id != 0）のbreak_timeも更新
+                        const updateResult = await env.DB.prepare('UPDATE shifts SET break_time = ? WHERE shift_date = ? AND user_id != 0').bind(breaks || '', date).run();
+                        console.log('通常シフトレコードの休憩時間更新結果:', updateResult);
+                    }
+                    // 不足時間はmanual_shortagesテーブルに保存（shiftsテーブルに該当カラムがない場合）
+                    if(shortages !== undefined) {
+                        // まずテーブルの存在を確認してから保存
+                        try {
+                            const shortagesResult = await env.DB.prepare('INSERT OR REPLACE INTO manual_shortages (shift_date, shortage_text) VALUES (?, ?)').bind(date, shortages || '').run();
+                            console.log('不足時間保存結果:', shortagesResult);
+                        } catch (e: any) {
+                            // manual_shortagesテーブルが存在しない場合は無視
+                            console.warn('manual_shortagesテーブルが存在しません:', e.message);
+                        }
+                    }
 
-                return withCors(new Response(JSON.stringify({ success: true }), { status: 200 }));
+                    return withCors(new Response(JSON.stringify({ success: true, date, breaks, shortages }), { 
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                } catch (dbError: any) {
+                    console.error('データベースエラー:', dbError);
+                    return withCors(new Response(JSON.stringify({ 
+                        success: false, 
+                        error: dbError.message,
+                        details: dbError.toString()
+                    }), { 
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                }
             
             } else if (url.pathname === '/api/login' && request.method === 'POST') {
                 const { username, password } = await request.json<any>();
