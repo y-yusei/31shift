@@ -466,12 +466,12 @@
             }
             
             // --- Data Fetching & State ---
-            async function fetchDataForMonth(date) {
+            async function fetchDataForMonth(date, forceRefresh = false) {
                 const year = date.getFullYear();
                 const month = ('0' + (date.getMonth() + 1)).slice(-2);
                 const monthKey = `${year}-${month}`;
                 
-                if (!loadedMonths[monthKey]) {
+                if (!loadedMonths[monthKey] || forceRefresh) {
                     try {
                         const response = await fetch(`${API_BASE_URL}/api/data?month=${year}-${month}`);
                         if (!response.ok) throw new Error('API Error');
@@ -585,6 +585,14 @@
                     appState.manualBreaks[date] = breaks;
                     appState.manualShortages[date] = shortages;
                     
+                    // データを再取得して最新状態を反映（キャッシュをクリア）
+                    const dateObj = new Date(date + 'T00:00:00');
+                    const monthKey = `${dateObj.getFullYear()}-${('0' + (dateObj.getMonth() + 1)).slice(-2)}`;
+                    if (loadedMonths[monthKey]) {
+                        loadedMonths[monthKey] = false; // キャッシュをクリア
+                    }
+                    await fetchDataForMonth(dateObj, true); // 強制再取得
+                    
                     console.log('ローカル状態更新完了:', { breaks: appState.manualBreaks[date], shortages: appState.manualShortages[date] });
                     return true;
                 } catch (error) {
@@ -624,7 +632,18 @@
                 } else if (input.matches('.break-time-input') || input.matches('.shortage-input')) {
                     const breakInput = mainViews.bulkShift.querySelector(`.break-time-input[data-date="${date}"]`);
                     const shortageInput = mainViews.bulkShift.querySelector(`.shortage-input[data-date="${date}"]`);
-                    const breaks = breakInput ? breakInput.value.trim() : '';
+                    
+                    // 休憩時間は正規化された値を保存
+                    let breaks = breakInput ? breakInput.value.trim() : '';
+                    if (breaks && breakInput) {
+                        // 再度正規化してから保存（念のため）
+                        const normalized = normalizeShiftTimeInput(breaks);
+                        if (normalized !== breaks) {
+                            breakInput.value = normalized;
+                            breaks = normalized;
+                        }
+                    }
+                    
                     const shortages = shortageInput ? shortageInput.value.trim() : '';
                     success = await updateManualData(date, breaks, shortages);
                 }
