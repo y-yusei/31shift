@@ -479,8 +479,15 @@
                         
                         appState.users = data.users || [];
                         appState.shifts = { ...appState.shifts, ...data.shifts };
+                        console.log('取得したデータ:', {
+                            shifts: data.shifts,
+                            manualBreaks: data.manualBreaks,
+                            manualShortages: data.manualShortages
+                        });
                         appState.manualBreaks = { ...appState.manualBreaks, ...data.manualBreaks };
                         appState.manualShortages = { ...appState.manualShortages, ...data.manualShortages };
+                        console.log('更新後のappState.manualBreaks:', appState.manualBreaks);
+                        console.log('更新後のappState.manualBreaksのキー:', Object.keys(appState.manualBreaks));
                         
                         loadedMonths[monthKey] = true;
                     } catch (error) {

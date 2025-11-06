@@ -38,12 +38,18 @@ export default {
 
                 const shiftsStmt = env.DB.prepare(`
                     SELECT 
-                        s.id, s.user_id as userId, u.name as fullName, u.role, 
-                        s.shift_date as shiftDate, s.time, s.break_time as breakTime, s.notes 
+                        s.id, s.user_id as userId, 
+                        COALESCE(u.name, '') as fullName, 
+                        COALESCE(u.role, '') as role, 
+                        s.shift_date as shiftDate, 
+                        s.time, 
+                        s.break_time as breakTime, 
+                        s.notes 
                     FROM 
                         shifts s LEFT JOIN users u ON s.user_id = u.id 
                     WHERE 
                         strftime('%Y-%m', s.shift_date) = ?
+                    ORDER BY s.shift_date, s.user_id
                 `).bind(month);
                 
                 const usersStmt = env.DB.prepare('SELECT * FROM users ORDER BY id');
@@ -67,10 +73,14 @@ export default {
                     const date = shift.shiftDate as string;
                     // 同じ日付で最初に見つかったbreak_timeを使用（全レコードで同じ値のはず）
                     // user_id=0のダミーレコードも含める
-                    if (shift.breakTime && !manualBreaks[date]) {
-                        manualBreaks[date] = shift.breakTime;
+                    // break_timeがNULL、空文字列、undefinedの場合も処理する
+                    const breakTime = shift.breakTime;
+                    if (!manualBreaks[date] && breakTime !== null && breakTime !== undefined) {
+                        // 空文字列も含めて保存
+                        manualBreaks[date] = breakTime || '';
                     }
                 });
+                console.log('shiftsResult.results:', shiftsResult.results);
                 console.log('集約されたmanualBreaks:', manualBreaks);
 
                 // user_id=0のダミーレコードを除外してシフトデータを構築
