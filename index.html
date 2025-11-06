@@ -616,19 +616,24 @@
                 }
             }
             
-            // 保存処理の重複実行を防ぐためのフラグ
-            const savingFlags = new Set();
+            // 保存処理の重複実行を防ぐためのフラグとタイムスタンプ
+            const savingFlags = new Map(); // key: saveKey, value: timestamp
             
             async function handleBulkShiftChange(event) {
                 const input = event.target;
                 if (!input || !input.matches('input[type="text"]')) return;
                 
-                // 重複実行を防ぐ
+                // 重複実行を防ぐ（同じ入力フィールドで500ms以内の重複実行を防ぐ）
                 const saveKey = `${input.dataset.date}-${input.className}`;
-                if (savingFlags.has(saveKey)) {
-                    console.log('保存処理が既に実行中です:', saveKey);
+                const now = Date.now();
+                const lastSaveTime = savingFlags.get(saveKey);
+                
+                if (lastSaveTime && (now - lastSaveTime) < 500) {
+                    console.log('保存処理が既に実行中です（重複防止）:', saveKey);
                     return;
                 }
+                
+                savingFlags.set(saveKey, now);
 
                 // オートフォーマット & バリデーション（シフトセルと休憩時間入力）
                 if (input.matches('.bulk-cell')) {
@@ -663,8 +668,6 @@
                     console.log('シフト更新:', { userId, date, time });
                     success = await updateShift({ userId, date, time });
                 } else if (input.matches('.break-time-input') || input.matches('.shortage-input')) {
-                    savingFlags.add(saveKey);
-                    
                     const breakInput = mainViews.bulkShift.querySelector(`.break-time-input[data-date="${date}"]`);
                     const shortageInput = mainViews.bulkShift.querySelector(`.shortage-input[data-date="${date}"]`);
                     
@@ -684,7 +687,15 @@
                     console.log('休憩・不足時間更新:', { date, breaks, shortages });
                     success = await updateManualData(date, breaks, shortages);
                     
-                    savingFlags.delete(saveKey);
+                    // 保存完了後、少し遅延してからフラグをクリア（重複防止のため）
+                    setTimeout(() => {
+                        savingFlags.delete(saveKey);
+                    }, 1000);
+                } else {
+                    // シフト更新の場合もフラグをクリア
+                    setTimeout(() => {
+                        savingFlags.delete(saveKey);
+                    }, 1000);
                 }
                 
                 if(success) {
@@ -1051,9 +1062,17 @@
             // --- イベントリスナー設定 ---
             updateUserInfo();
             Object.keys(navButtons).forEach(key => navButtons[key].addEventListener('click', () => switchView(key)));
+            // changeイベントのみ使用（blurはchangeと重複するため削除）
             mainViews.bulkShift.addEventListener('change', handleBulkShiftChange);
-            mainViews.bulkShift.addEventListener('blur', handleBulkShiftChange, true); // blurイベントも追加（スマホ対応）
-            mainViews.bulkShift.addEventListener('keydown', handleBulkShiftKeyNavigation);
+            // スマホ対応：Enterキーで保存
+            mainViews.bulkShift.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && e.target.matches('.break-time-input, .shortage-input')) {
+                    e.preventDefault();
+                    handleBulkShiftChange(e);
+                } else {
+                    handleBulkShiftKeyNavigation(e);
+                }
+            });
             mainViews.bulkShift.addEventListener('paste', handleBulkShiftPaste, true);
             document.getElementById('prevMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); fetchDataForMonth(calendarDisplayDate); });
             document.getElementById('nextMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); fetchDataForMonth(calendarDisplayDate); });

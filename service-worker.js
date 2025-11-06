@@ -1,13 +1,10 @@
 const CACHE_NAME = '31shift-v1';
+// ローカルリソースのみキャッシュ（CDNリソースは除外）
 const urlsToCache = [
   '/',
   '/index.html',
   '/css/style.css',
-  '/img/icon.png',
-  'https://cdn.tailwindcss.com',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css',
-  'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js',
-  'https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js'
+  '/img/icon.png'
 ];
 
 // インストール時の処理
@@ -16,7 +13,14 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('キャッシュを開きました');
-        return cache.addAll(urlsToCache);
+        // ローカルリソースのみキャッシュ（エラーを無視して続行）
+        return Promise.allSettled(
+          urlsToCache.map(url => 
+            cache.add(url).catch(err => {
+              console.warn(`キャッシュに追加できませんでした: ${url}`, err);
+            })
+          )
+        );
       })
       .catch((error) => {
         console.error('キャッシュの追加に失敗しました:', error);
@@ -66,16 +70,30 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // レスポンスをクローンしてキャッシュに保存
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
+        // ローカルリソースのみキャッシュに保存（CDNリソースは除外）
+        const url = new URL(event.request.url);
+        const isLocalResource = url.origin === self.location.origin;
+        
+        if (isLocalResource && response.status === 200) {
+          // レスポンスをクローンしてキャッシュに保存
+          const responseToCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache).catch(err => {
+              console.warn('キャッシュの保存に失敗しました:', err);
+            });
+          });
+        }
         return response;
       })
       .catch(() => {
-        // ネットワークエラー時はキャッシュから取得
-        return caches.match(event.request);
+        // ネットワークエラー時はキャッシュから取得（ローカルリソースのみ）
+        const url = new URL(event.request.url);
+        const isLocalResource = url.origin === self.location.origin;
+        if (isLocalResource) {
+          return caches.match(event.request);
+        }
+        // CDNリソースの場合はエラーをそのまま返す
+        return new Response('ネットワークエラー', { status: 503 });
       })
   );
 });
