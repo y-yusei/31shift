@@ -1,0 +1,10 @@
+{
+  // Cloudflare Workers Versions (build) config for static asset upload
+  "name": "31shiftplus",
+  "compatibility_date": "2025-11-06",
+  "assets": {
+    // Upload all files in the repository as static assets
+    "directory": "./"
+  }
+}
+
