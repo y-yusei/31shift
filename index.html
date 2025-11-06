@@ -1012,11 +1012,12 @@
                 }
                 dateHeader.innerHTML = headerHtml;
                 
-                // managerを上位に表示するようにソート
                 const displayableUsers = [...appState.users].sort((a, b) => {
+                    // 管理者を上に表示
                     if (a.role === 'manager' && b.role !== 'manager') return -1;
                     if (a.role !== 'manager' && b.role === 'manager') return 1;
-                    return 0; // 同じroleの場合は元の順序を維持
+                    // 同じrole内ではIDの昇順
+                    return a.id - b.id;
                 });
                 displayableUsers.forEach(user => {
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
