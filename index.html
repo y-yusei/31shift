@@ -101,6 +101,14 @@
         .bulk-shift-table tfoot th { background-color: var(--bg-accent); position: sticky; left: 0; z-index: 10;}
         .bulk-shift-table input[type="text"] { border: none; }
         
+        /* 入力フィールドのフォントサイズ設定（通常時は小さく、フォーカス時は16px以上） */
+        .bulk-shift-table input[type="text"] {
+            font-size: 0.875rem; /* 14px - 通常時 */
+        }
+        .bulk-shift-table input[type="text"]:focus {
+            font-size: 1rem !important; /* 16px - フォーカス時は16px以上でズームを防ぐ */
+        }
+        
         /* スマホ対応の一括シフトテーブル */
         @media (max-width: 768px) {
             .bulk-shift-table {
@@ -111,9 +119,12 @@
                 min-width: 100px;
             }
             .bulk-shift-table input[type="text"] {
-                font-size: 1rem; /* 16px以上にしてズームを防ぐ */
+                font-size: 0.75rem; /* 12px - 通常時は小さく */
                 padding: 0.2rem;
                 min-width: 95px;
+            }
+            .bulk-shift-table input[type="text"]:focus {
+                font-size: 1rem !important; /* 16px - フォーカス時は16px以上でズームを防ぐ */
             }
             .bulk-shift-table tbody th {
                 min-width: 110px;
@@ -131,9 +142,12 @@
                 min-width: 120px;
             }
             .bulk-shift-table input[type="text"] {
-                font-size: 1rem; /* 16px以上にしてズームを防ぐ */
+                font-size: 0.875rem; /* 14px - 通常時 */
                 padding: 0.3rem;
                 min-width: 115px;
+            }
+            .bulk-shift-table input[type="text"]:focus {
+                font-size: 1rem !important; /* 16px - フォーカス時は16px以上でズームを防ぐ */
             }
         }
         
@@ -798,7 +812,7 @@
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
                         const shift = (appState.shifts[dateString] || []).find(s => s.userId === user.id);
-                        rowHtml += `<td class="p-0"><input type="text" value="${shift && shift.time && shift.time.trim() ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="bulk-cell w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center" style="border-color: var(--border-color); font-size: 1rem;" placeholder=" " inputmode="numeric" autocomplete="off"></td>`;
+                        rowHtml += `<td class="p-0"><input type="text" value="${shift && shift.time && shift.time.trim() ? shift.time : ""}" data-user-id="${user.id}" data-date="${dateString}" class="bulk-cell w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center" style="border-color: var(--border-color);" placeholder=" " inputmode="numeric" autocomplete="off"></td>`;
                     });
                     rowHtml += '</tr>';
                     body.innerHTML += rowHtml;
@@ -807,14 +821,14 @@
                 let breakTimesRowHtml = '<tr><th class="font-semibold p-2 text-left">休憩</th>'; 
                 days.forEach(dateString => {
                     const breakValue = appState.manualBreaks[dateString];
-                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center" value="${breakValue && breakValue.trim() ? breakValue : ''}" data-date="${dateString}" style="border-color: var(--border-color); font-size: 1rem;" placeholder=" "></td>`;
+                    breakTimesRowHtml += `<td class="p-0"><input type="text" class="break-time-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center" value="${breakValue && breakValue.trim() ? breakValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder=" "></td>`;
                 });
                 breakRow.innerHTML = breakTimesRowHtml;
 
                 let shortageRowHtml = '<tr><th class="font-semibold p-2 text-left">不足</th>'; 
                 days.forEach(dateString => {
                     const shortageValue = appState.manualShortages[dateString];
-                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center" value="${shortageValue && shortageValue.trim() ? shortageValue : ''}" data-date="${dateString}" style="border-color: var(--border-color); font-size: 1rem;" placeholder=" "></td>`;
+                    shortageRowHtml += `<td class="p-0"><input type="text" class="shortage-input w-full h-full p-2 bg-transparent border-t-0 border-b-0 border-l-0 border-r text-center" value="${shortageValue && shortageValue.trim() ? shortageValue : ''}" data-date="${dateString}" style="border-color: var(--border-color);" placeholder=" "></td>`;
                 });
                 shortageRow.innerHTML = shortageRowHtml;
 
