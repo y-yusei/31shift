@@ -363,6 +363,26 @@
                 d.setHours(h, m, 0, 0);
                 return d;
             }
+            // 休憩時間を分単位に変換する関数（「60分」「1時間」「60」「1:00」などの形式に対応）
+            function parseBreakTimeToMinutes(breakTimeStr) {
+                if (!breakTimeStr || !breakTimeStr.trim()) return 0;
+                const str = breakTimeStr.trim();
+                // 「分」を削除
+                const withoutUnit = str.replace(/分/g, '').trim();
+                // 「時間」を分に変換
+                if (withoutUnit.includes('時間')) {
+                    const [hours, minutes] = withoutUnit.split('時間').map(s => parseInt(s.trim()) || 0);
+                    return hours * 60 + (minutes || 0);
+                }
+                // 「:」が含まれている場合（例：「1:00」）
+                if (withoutUnit.includes(':')) {
+                    const [h, m] = withoutUnit.split(':').map(s => parseInt(s.trim()) || 0);
+                    return h * 60 + m;
+                }
+                // 数値のみの場合（例：「60」）
+                const num = parseInt(withoutUnit);
+                return isNaN(num) ? 0 : num;
+            }
             function isValidShiftTimeFormat(str) {
                 if (!str) return true;
                 return /^\d{2}:\d{2}\s*-\s*\d{2}:\d{2}$/.test(str.trim());
@@ -738,17 +758,57 @@
                     });
 
                 const yLabels = sortedShifts.map(s => s.fullName);
+                
+                // 休憩時間を取得
+                const breakTimeStr = appState.manualBreaks[dateString] || '';
+                const breakMinutes = parseBreakTimeToMinutes(breakTimeStr);
 
-                const chartDatasetData = sortedShifts.map(shift => {
+                // グラフデータを生成（休憩時間を考慮）
+                const chartDatasetData = [];
+                sortedShifts.forEach(shift => {
                     const [startStr, endStr] = shift.time.split(' - ');
                     const mainStartDate = parseTimeToDate(startStr, chartDisplayDate);
                     const mainEndDate = parseTimeToDate(endStr, chartDisplayDate);
-                    if(!mainStartDate || !mainEndDate) return null;
-                    return {
-                        x: [mainStartDate.getTime(), mainEndDate.getTime()], y: shift.fullName, originalShift: shift,
-                        bgColor: shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)'
-                    };
-                }).filter(Boolean);
+                    if(!mainStartDate || !mainEndDate) return;
+                    
+                    // 勤務時間を分単位で計算
+                    const workMinutes = (mainEndDate - mainStartDate) / (1000 * 60);
+                    
+                    // 7時間（420分）を超える場合、かつ休憩時間が入力されている場合のみ休憩を適用
+                    if (workMinutes > 420 && breakMinutes > 0) {
+                        // 休憩開始時間（勤務時間の中央付近）
+                        const breakStartDate = new Date(mainStartDate.getTime() + (workMinutes - breakMinutes) / 2 * 60 * 1000);
+                        const breakEndDate = new Date(breakStartDate.getTime() + breakMinutes * 60 * 1000);
+                        
+                        // 勤務時間を2つに分割
+                        // 1. 開始から休憩開始まで
+                        chartDatasetData.push({
+                            x: [mainStartDate.getTime(), breakStartDate.getTime()],
+                            y: shift.fullName,
+                            originalShift: shift,
+                            bgColor: shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)',
+                            isBreak: false
+                        });
+                        
+                        // 2. 休憩終了から終了まで
+                        chartDatasetData.push({
+                            x: [breakEndDate.getTime(), mainEndDate.getTime()],
+                            y: shift.fullName,
+                            originalShift: shift,
+                            bgColor: shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)',
+                            isBreak: false
+                        });
+                    } else {
+                        // 休憩を適用しない場合（通常の表示）
+                        chartDatasetData.push({
+                            x: [mainStartDate.getTime(), mainEndDate.getTime()],
+                            y: shift.fullName,
+                            originalShift: shift,
+                            bgColor: shift.role === 'manager' ? 'rgba(250, 204, 21, 0.7)' : 'rgba(59, 130, 246, 0.7)',
+                            isBreak: false
+                        });
+                    }
+                });
                 
                 const chartMinTime = new Date(chartDisplayDate); chartMinTime.setHours(9,0,0,0); 
                 const chartMaxTime = new Date(chartDisplayDate); chartMaxTime.setHours(21,0,0,0); 
@@ -771,7 +831,14 @@
                                     label: function(context) {
                                         const start = new Date(context.raw.x[0]);
                                         const end = new Date(context.raw.x[1]);
-                                        return `${context.raw.originalShift.fullName}: ${formatTime(start)} - ${formatTime(end)}`;
+                                        const workMinutes = (end - start) / (1000 * 60);
+                                        const hours = Math.floor(workMinutes / 60);
+                                        const minutes = workMinutes % 60;
+                                        let label = `${context.raw.originalShift.fullName}: ${formatTime(start)} - ${formatTime(end)}`;
+                                        if (hours > 0 || minutes > 0) {
+                                            label += ` (${hours}時間${minutes > 0 ? minutes + '分' : ''})`;
+                                        }
+                                        return label;
                                     }
                                 }
                             }
@@ -807,7 +874,12 @@
                 }
                 dateHeader.innerHTML = headerHtml;
                 
-                const displayableUsers = [...appState.users];
+                // managerを上位に表示するようにソート
+                const displayableUsers = [...appState.users].sort((a, b) => {
+                    if (a.role === 'manager' && b.role !== 'manager') return -1;
+                    if (a.role !== 'manager' && b.role === 'manager') return 1;
+                    return 0; // 同じroleの場合は元の順序を維持
+                });
                 displayableUsers.forEach(user => {
                     let rowHtml = `<tr><th class="font-semibold p-2 text-left whitespace-nowrap ${user.role === 'manager' ? 'text-amber-700' : ''}">${user.name}</th>`;
                     days.forEach((dateString) => {
