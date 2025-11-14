@@ -302,10 +302,18 @@
 
             mainViews.dailyChart.innerHTML = `
                 <h2 class="text-2xl font-semibold mb-4">日別シフトグラフ</h2>
-                <div class="flex items-center mb-4">
-                    <button id="prevDayChartBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-4 rounded-l-lg transition"><i class="fas fa-chevron-left"></i></button>
-                    <input type="date" id="currentChartDate" class="p-2 text-center border-y border-slate-300 w-full text-lg">
-                    <button id="nextDayChartBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-4 rounded-r-lg transition"><i class="fas fa-chevron-right"></i></button>
+                <div class="flex flex-col md:flex-row items-center justify-between mb-4 gap-4">
+                    <div class="flex items-center gap-2">
+                        <label for="chartEmployeeSelect" class="text-sm font-medium">従業員フィルタ:</label>
+                        <select id="chartEmployeeSelect" class="p-2 border rounded-md shadow-sm text-sm">
+                            <option value="">全員表示</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center">
+                        <button id="prevDayChartBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-4 rounded-l-lg transition"><i class="fas fa-chevron-left"></i></button>
+                        <input type="date" id="currentChartDate" class="p-2 text-center border-y border-slate-300 w-full text-lg">
+                        <button id="nextDayChartBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-4 rounded-r-lg transition"><i class="fas fa-chevron-right"></i></button>
+                    </div>
                 </div>
                 <div class="chart-container mb-6" style="height: 400px;"><canvas id="dailyShiftChart"></canvas></div>`;
 
@@ -349,6 +357,7 @@
             // リアルタイムの日付を取得して、その日が含まれる範囲を初めに表示
             let bulkViewIsFirstHalf = today.getDate() <= 15;
             let selectedEmployeeForHighlight = null;
+            let selectedEmployeeForChart = null;
             
             // --- Helper Functions ---
             function formatTime(d) { return `${('0' + d.getHours()).slice(-2)}:${('0' + d.getMinutes()).slice(-2)}`; }
@@ -802,14 +811,30 @@
                 setActiveNavButton(viewKey);
                 let targetDate;
                 if (viewKey === 'calendar') targetDate = calendarDisplayDate;
-                else if (viewKey === 'dailyChart') targetDate = chartDisplayDate;
+                else if (viewKey === 'dailyChart') {
+                    targetDate = chartDisplayDate;
+                    // グラフビューに切り替えた時に従業員選択ドロップダウンを更新
+                    const chartEmployeeSelect = document.getElementById('chartEmployeeSelect');
+                    if (chartEmployeeSelect) {
+                        chartEmployeeSelect.innerHTML = `<option value="">全員表示</option>` + appState.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+                        if (selectedEmployeeForChart) chartEmployeeSelect.value = selectedEmployeeForChart;
+                    }
+                }
                 else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
                 await fetchDataForMonth(targetDate);
             }
             
             function refreshCurrentView() {
                 if (!mainViews.calendar.classList.contains('hidden')) renderCalendar();
-                else if (!mainViews.dailyChart.classList.contains('hidden')) renderDailyShiftChart();
+                else if (!mainViews.dailyChart.classList.contains('hidden')) {
+                    // グラフビューの従業員選択ドロップダウンを更新
+                    const chartEmployeeSelect = document.getElementById('chartEmployeeSelect');
+                    if (chartEmployeeSelect) {
+                        chartEmployeeSelect.innerHTML = `<option value="">全員表示</option>` + appState.users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+                        if (selectedEmployeeForChart) chartEmployeeSelect.value = selectedEmployeeForChart;
+                    }
+                    renderDailyShiftChart();
+                }
                 else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
             }
 
@@ -852,7 +877,12 @@
                 const dailyShiftChartCanvas = document.getElementById('dailyShiftChart');
                 if (!dailyShiftChartCanvas) return;
                 const dateString = formatDate(chartDisplayDate);
-                const shiftsForDay = (appState.shifts[dateString] || []).slice();
+                let shiftsForDay = (appState.shifts[dateString] || []).slice();
+                
+                // 従業員フィルタが選択されている場合、その人のシフトのみを表示
+                if (selectedEmployeeForChart) {
+                    shiftsForDay = shiftsForDay.filter(s => s.userId == selectedEmployeeForChart);
+                }
                 
                 if (dailyShiftChartInstance) dailyShiftChartInstance.destroy();
                 const ctx = dailyShiftChartCanvas.getContext('2d');
@@ -860,7 +890,8 @@
                 
                 if (shiftsForDay.length === 0) {
                     ctx.font = '16px Inter, sans-serif'; ctx.fillStyle = '#64748b'; ctx.textAlign = 'center';
-                    ctx.fillText('この日のシフトはありません', dailyShiftChartCanvas.width / 2, 50);
+                    const message = selectedEmployeeForChart ? 'この日に選択した従業員のシフトはありません' : 'この日のシフトはありません';
+                    ctx.fillText(message, dailyShiftChartCanvas.width / 2, 50);
                     return;
                 }
                 
@@ -1099,9 +1130,59 @@
             document.getElementById('prevMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() - 1); fetchDataForMonth(calendarDisplayDate); });
             document.getElementById('nextMonthBtn').addEventListener('click', () => { calendarDisplayDate.setMonth(calendarDisplayDate.getMonth() + 1); fetchDataForMonth(calendarDisplayDate); });
             document.getElementById('employeeHighlightSelect').addEventListener('change', (e) => { selectedEmployeeForHighlight = e.target.value; renderCalendar(); });
-            document.getElementById('prevDayChartBtn').addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() - 1); document.getElementById('currentChartDate').value = formatDate(chartDisplayDate); fetchDataForMonth(chartDisplayDate); });
-            document.getElementById('nextDayChartBtn').addEventListener('click', () => { chartDisplayDate.setDate(chartDisplayDate.getDate() + 1); document.getElementById('currentChartDate').value = formatDate(chartDisplayDate); fetchDataForMonth(chartDisplayDate); });
+            // 選択された従業員がシフトに入っている次の日/前の日を見つける関数
+            function findNextDayWithEmployeeShift(direction) {
+                if (!selectedEmployeeForChart) {
+                    // フィルタが選択されていない場合は通常の前日/次日
+                    chartDisplayDate.setDate(chartDisplayDate.getDate() + direction);
+                    return;
+                }
+                
+                const currentDate = new Date(chartDisplayDate);
+                let searchDate = new Date(currentDate);
+                let daysChecked = 0;
+                const maxDaysToCheck = 365; // 最大1年先まで検索
+                
+                while (daysChecked < maxDaysToCheck) {
+                    searchDate.setDate(searchDate.getDate() + direction);
+                    const dateString = formatDate(searchDate);
+                    const shiftsForDay = appState.shifts[dateString] || [];
+                    
+                    // 選択された従業員がシフトに入っている日を見つけた
+                    if (shiftsForDay.some(s => s.userId == selectedEmployeeForChart && s.time && s.time.trim())) {
+                        chartDisplayDate = new Date(searchDate);
+                        document.getElementById('currentChartDate').value = formatDate(chartDisplayDate);
+                        fetchDataForMonth(chartDisplayDate);
+                        return;
+                    }
+                    
+                    daysChecked++;
+                }
+                
+                // 見つからなかった場合は通常の前日/次日に移動
+                chartDisplayDate.setDate(chartDisplayDate.getDate() + direction);
+            }
+            
+            document.getElementById('prevDayChartBtn').addEventListener('click', () => { 
+                findNextDayWithEmployeeShift(-1);
+                document.getElementById('currentChartDate').value = formatDate(chartDisplayDate);
+                fetchDataForMonth(chartDisplayDate);
+            });
+            document.getElementById('nextDayChartBtn').addEventListener('click', () => { 
+                findNextDayWithEmployeeShift(1);
+                document.getElementById('currentChartDate').value = formatDate(chartDisplayDate);
+                fetchDataForMonth(chartDisplayDate);
+            });
             document.getElementById('currentChartDate').addEventListener('change', (e) => { chartDisplayDate = new Date(e.target.value + "T00:00:00"); fetchDataForMonth(chartDisplayDate); });
+            
+            // グラフビューでの従業員選択のイベントリスナー
+            const chartEmployeeSelect = document.getElementById('chartEmployeeSelect');
+            if (chartEmployeeSelect) {
+                chartEmployeeSelect.addEventListener('change', (e) => { 
+                    selectedEmployeeForChart = e.target.value || null;
+                    renderDailyShiftChart();
+                });
+            }
             document.getElementById('prevMonthBulkBtn').addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); fetchDataForMonth(bulkViewDisplayMonth); });
             document.getElementById('nextMonthBulkBtn').addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); fetchDataForMonth(bulkViewDisplayMonth); });
             document.getElementById('toggleBulkShiftPeriodBtn').addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
