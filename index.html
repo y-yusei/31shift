@@ -944,6 +944,23 @@
 
                 // 新規要素へフォーカス可能属性を付与
                 setupBulkTableA11yFocus();
+                
+                // 日付ヘッダーを固定するために各列の位置を計算
+                setTimeout(() => {
+                    const firstTh = dateHeader.querySelector('th:first-child');
+                    if (firstTh) {
+                        const nameColumnWidth = firstTh.offsetWidth;
+                        const dateHeaders = Array.from(dateHeader.querySelectorAll('th:not(:first-child)'));
+                        let cumulativeLeft = nameColumnWidth;
+                        
+                        dateHeaders.forEach((th) => {
+                            th.style.left = `${cumulativeLeft}px`;
+                            th.style.position = 'sticky';
+                            th.style.zIndex = '20';
+                            cumulativeLeft += th.offsetWidth;
+                        });
+                    }
+                }, 0);
             }
             
             function showShiftDetailModal(date) {

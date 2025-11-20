@@ -140,6 +140,11 @@ input:focus, select:focus {
     left: 0; 
     z-index: 30; 
 }
+.bulk-shift-table thead th:not(:first-child) { 
+    position: sticky; 
+    top: 0; 
+    z-index: 20; 
+}
 .bulk-shift-table tfoot th { 
     background-color: var(--bg-accent); 
     position: sticky; 
