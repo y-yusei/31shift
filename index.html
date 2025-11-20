@@ -610,12 +610,23 @@
                     
                     // テーブルの上端が画面外に出た場合、ヘッダーを画面上部に固定
                     if (tableRect.top < 0) {
+                        // まず通常の位置に戻してから正確な位置を取得
+                        dateHeaders.forEach((th) => {
+                            th.style.position = '';
+                            th.style.left = '';
+                            th.style.width = '';
+                        });
+                        
+                        // レイアウトを再計算
+                        void table.offsetHeight;
+                        
+                        // 各ヘッダーの実際の位置を取得して固定
                         dateHeaders.forEach((th) => {
                             const thRect = th.getBoundingClientRect();
                             th.style.position = 'fixed';
                             th.style.top = '0';
                             th.style.left = `${thRect.left}px`;
-                            th.style.width = `${th.offsetWidth}px`;
+                            th.style.width = `${thRect.width}px`;
                             th.style.zIndex = '20';
                             th.style.backgroundColor = 'var(--bg-accent)';
                         });
