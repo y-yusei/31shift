@@ -1,9 +1,62 @@
-/* 基本的なフォント設定と背景色 */
-body {
-    font-family: 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', Meiryo, メイリオ, Osaka, 'MS PGothic', sans-serif;
+/* === カラーパレット定義 === */
+:root {
+    --bg-primary: #f8fafc; /* メイン背景 */
+    --bg-secondary: #ffffff; /* カード背景 */
+    --bg-accent: #f1f5f9; /* アクセント背景 */
+    --text-primary: #1e293b; /* メインテキスト */
+    --text-secondary: #64748b; /* サブテキスト */
+    --border-color: #e2e8f0; /* 境界線 */
+    --primary-brand: #4f46e5; /* プライマリブランドカラー */
+    --primary-brand-hover: #4338ca;
+    --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
 }
 
-/* ナビゲーションボタンのスタイル */
+/* === 基本スタイル === */
+body { 
+    font-family: 'Inter', 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN W3', Meiryo, メイリオ, Osaka, 'MS PGothic', sans-serif; 
+    background-color: var(--bg-primary); 
+    color: var(--text-primary);
+    transition: background-color 0.3s, color 0.3s;
+}
+
+/* === 共通コンポーネント === */
+.card {
+    background-color: var(--bg-secondary);
+    border-radius: 0.75rem;
+    box-shadow: var(--shadow);
+    transition: background-color 0.3s, box-shadow 0.3s;
+}
+.main-view, .modal-content {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+h1, h2, h3 { color: var(--text-primary); }
+input, select {
+    background-color: var(--bg-secondary);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    border-radius: 0.5rem;
+}
+input:focus, select:focus {
+    border-color: var(--primary-brand);
+    box-shadow: 0 0 0 2px var(--primary-brand-hover);
+    outline: none;
+}
+.input-success {
+    border-color: #22c55e !important; /* green-500 */
+    transition: border-color 0.5s;
+}
+
+/* === ナビゲーションボタン === */
+.nav-button {
+    transition: all 0.2s ease-in-out;
+}
+.nav-button.active {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* ナビゲーションボタンのスタイル（既存） */
 .nav-btn {
     padding: 1rem;
     border-bottom: 3px solid transparent;
@@ -17,44 +70,44 @@ body {
     color: #1e293b; /* slate-800 */
 }
 
-/* アクティブなナビゲーションボタンのスタイル */
 .nav-btn.active {
     border-bottom-color: #3b82f6; /* blue-500 */
     color: #3b82f6;
 }
 
-/* 各ビューの基本スタイル */
-.view-content {
-    animation: fadeIn 0.5s ease-in-out;
-}
-
-/* 非表示クラス */
-.hidden {
-    display: none;
-}
-
-/* カレンダーの日付セル */
-.calendar-day {
-    min-height: 120px;
-    background-color: white;
-    border: 1px solid #e2e8f0; /* slate-200 */
-    transition: background-color 0.2s;
-    padding: 0.5rem;
-}
-
-.calendar-day:hover {
-    background-color: #f8fafc; /* slate-50 */
+/* === カレンダー === */
+.calendar-day { 
+    border: 1px solid var(--border-color);
+    min-height: 100px; 
+    position: relative;
+    background-color: var(--bg-secondary);
+    border-radius: 0.375rem; 
     cursor: pointer;
+    transition: all 0.2s ease-in-out;
 }
-
-.other-month {
-    min-height: 120px;
-    background-color: #f1f5f9; /* slate-100 */
+.calendar-day:hover { 
+    transform: translateY(-2px); 
+    box-shadow: var(--shadow); 
 }
-
-.today {
-    background-color: #fef9c3; /* yellow-100 */
-    font-weight: bold;
+.calendar-day-header { 
+    font-weight: 500; 
+    color: var(--text-secondary); 
+}
+.today { 
+    background-color: #fef2f2; 
+}
+.today .calendar-day-header { 
+    color: #dc2626; 
+    font-weight: 700; 
+}
+.other-month { 
+    background-color: var(--bg-accent); 
+    color: var(--text-secondary); 
+    cursor: default; 
+}
+.other-month:hover { 
+    transform: none; 
+    box-shadow: none; 
 }
 
 .highlight-shift {
@@ -62,6 +115,103 @@ body {
     border: 1px solid #93c5fd; /* blue-300 */
 }
 
+/* === モーダル === */
+.modal { 
+    background-color: rgba(0,0,0,0.6); 
+}
+
+/* === 一括シフトテーブル === */
+.bulk-shift-table th, .bulk-shift-table td { 
+    border: 1px solid var(--border-color); 
+}
+.bulk-shift-table thead th { 
+    background-color: var(--bg-accent); 
+    position: sticky; 
+    top: 0; 
+    z-index: 20;
+}
+.bulk-shift-table tbody th { 
+    background-color: var(--bg-accent); 
+    position: sticky; 
+    left: 0; 
+    z-index: 10;
+}
+.bulk-shift-table thead th:first-child { 
+    left: 0; 
+    z-index: 30; 
+}
+.bulk-shift-table tfoot th { 
+    background-color: var(--bg-accent); 
+    position: sticky; 
+    left: 0; 
+    z-index: 10;
+}
+.bulk-shift-table input[type="text"] { 
+    border: none; 
+}
+
+/* 入力フィールドのフォントサイズ設定（通常時は小さく、フォーカス時は16px以上） */
+.bulk-shift-table input[type="text"] {
+    font-size: 0.875rem; /* 14px - 通常時 */
+}
+.bulk-shift-table input[type="text"]:focus {
+    font-size: 1rem !important; /* 16px - フォーカス時は16px以上でズームを防ぐ */
+}
+
+/* スマホ対応の一括シフトテーブル */
+@media (max-width: 768px) {
+    .bulk-shift-table {
+        font-size: 0.7rem;
+    }
+    .bulk-shift-table th, .bulk-shift-table td {
+        padding: 0.2rem;
+        min-width: 100px;
+    }
+    .bulk-shift-table input[type="text"] {
+        font-size: 0.75rem; /* 12px - 通常時は小さく */
+        padding: 0.2rem;
+        min-width: 95px;
+    }
+    .bulk-shift-table input[type="text"]:focus {
+        font-size: 1rem !important; /* 16px - フォーカス時は16px以上でズームを防ぐ */
+    }
+    .bulk-shift-table tbody th {
+        min-width: 110px;
+        font-size: 0.7rem;
+    }
+}
+
+/* タブレット対応 */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .bulk-shift-table {
+        font-size: 0.8rem;
+    }
+    .bulk-shift-table th, .bulk-shift-table td {
+        padding: 0.3rem;
+        min-width: 120px;
+    }
+    .bulk-shift-table input[type="text"] {
+        font-size: 0.875rem; /* 14px - 通常時 */
+        padding: 0.3rem;
+        min-width: 115px;
+    }
+    .bulk-shift-table input[type="text"]:focus {
+        font-size: 1rem !important; /* 16px - フォーカス時は16px以上でズームを防ぐ */
+    }
+}
+
+/* デスクトップ対応 */
+@media (min-width: 1025px) {
+    .bulk-shift-table th, .bulk-shift-table td {
+        min-width: 140px;
+    }
+    .bulk-shift-table input[type="text"] {
+        min-width: 135px;
+    }
+    .bulk-shift-table tbody th {
+        min-width: 150px;
+    }
+}
 
 /* 前月・翌月ボタンなどの共通スタイル */
 .control-btn {
@@ -75,6 +225,15 @@ body {
     background-color: #cbd5e1; /* slate-300 */
 }
 
+/* 各ビューの基本スタイル */
+.view-content {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* 非表示クラス */
+.hidden {
+    display: none;
+}
 
 /* フェードインアニメーション */
 @keyframes fadeIn {
