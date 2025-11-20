@@ -595,6 +595,72 @@
                 inputs.forEach(inp => inp.setAttribute('tabindex', '0'));
             }
 
+            function setupStickyDateHeader() {
+                const table = document.getElementById('bulkShiftTable');
+                const dateHeader = document.getElementById('bulkShiftTableDateHeader');
+                if (!table || !dateHeader) return;
+
+                let scrollHandler = null;
+                let resizeHandler = null;
+                const container = table.closest('.bulk-shift-container');
+                
+                function updateHeaderPosition() {
+                    const tableRect = table.getBoundingClientRect();
+                    const dateHeaders = Array.from(dateHeader.querySelectorAll('th:not(:first-child)'));
+                    
+                    // テーブルの上端が画面外に出た場合、ヘッダーを画面上部に固定
+                    if (tableRect.top < 0) {
+                        dateHeaders.forEach((th) => {
+                            const thRect = th.getBoundingClientRect();
+                            th.style.position = 'fixed';
+                            th.style.top = '0';
+                            th.style.left = `${thRect.left}px`;
+                            th.style.width = `${th.offsetWidth}px`;
+                            th.style.zIndex = '20';
+                            th.style.backgroundColor = 'var(--bg-accent)';
+                        });
+                    } else {
+                        // テーブルの上端が画面内にある場合、通常のstickyに戻す
+                        dateHeaders.forEach((th) => {
+                            th.style.position = 'sticky';
+                            th.style.top = '0';
+                            th.style.left = '';
+                            th.style.width = '';
+                            th.style.zIndex = '20';
+                            th.style.backgroundColor = 'var(--bg-accent)';
+                        });
+                    }
+                }
+
+                // 既存のハンドラーを削除
+                if (scrollHandler) {
+                    window.removeEventListener('scroll', scrollHandler, true);
+                    if (container) {
+                        container.removeEventListener('scroll', scrollHandler, true);
+                    }
+                }
+                if (resizeHandler) {
+                    window.removeEventListener('resize', resizeHandler);
+                }
+
+                // 新しいハンドラーを設定
+                scrollHandler = () => {
+                    requestAnimationFrame(updateHeaderPosition);
+                };
+                resizeHandler = () => {
+                    requestAnimationFrame(updateHeaderPosition);
+                };
+                
+                window.addEventListener('scroll', scrollHandler, true);
+                window.addEventListener('resize', resizeHandler);
+                if (container) {
+                    container.addEventListener('scroll', scrollHandler, true);
+                }
+                
+                // 初期状態を設定
+                setTimeout(updateHeaderPosition, 100);
+            }
+
             function focusNextCell(current, dx, dy) {
                 const allRows = Array.from(document.querySelectorAll('#bulkShiftTable tbody tr'));
                 if (allRows.length === 0) return;
@@ -943,8 +1009,8 @@
                 // 新規要素へフォーカス可能属性を付与
                 setupBulkTableA11yFocus();
                 
-                // 日付ヘッダーを縦スクロール時に画面上部に固定（横スクロール時は固定しない）
-                // CSSで既に設定されているので、追加の設定は不要
+                // 日付ヘッダーを縦スクロール時に画面上部に固定
+                setupStickyDateHeader();
             }
             
             function showShiftDetailModal(date) {
