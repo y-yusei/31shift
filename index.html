@@ -943,26 +943,8 @@
                 // 新規要素へフォーカス可能属性を付与
                 setupBulkTableA11yFocus();
                 
-                // 日付ヘッダーを固定するために各列の位置を計算（縦横両方向に固定）
-                setTimeout(() => {
-                    const firstTh = dateHeader.querySelector('th:first-child');
-                    if (firstTh) {
-                        const nameColumnWidth = firstTh.offsetWidth;
-                        const dateHeaders = Array.from(dateHeader.querySelectorAll('th:not(:first-child)'));
-                        let cumulativeLeft = nameColumnWidth;
-                        
-                        dateHeaders.forEach((th) => {
-                            // 横スクロール時の固定位置を設定
-                            th.style.left = `${cumulativeLeft}px`;
-                            // 縦スクロール時に画面上部に固定（CSSでtop: 0が設定されている）
-                            th.style.position = 'sticky';
-                            th.style.top = '0';
-                            th.style.zIndex = '20';
-                            th.style.backgroundColor = 'var(--bg-accent)';
-                            cumulativeLeft += th.offsetWidth;
-                        });
-                    }
-                }, 0);
+                // 日付ヘッダーを縦スクロール時に画面上部に固定（横スクロール時は固定しない）
+                // CSSで既に設定されているので、追加の設定は不要
             }
             
             function showShiftDetailModal(date) {
