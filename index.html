@@ -187,17 +187,15 @@
                     </div>
                 </div>
                 <div class="text-xs text-slate-500 mb-2">ヒント: セル選択中に貼り付け(Excel/Googleスプレッドシート対応)、矢印キー/Enterで移動、入力は「930-1830」「9:30-18:30」「9-18」などもOKです。</div>
-                <div class="overflow-x-auto" style="max-width: 100vw;">
-                    <div class="inline-block min-w-full">
-                        <table id="bulkShiftTable" class="min-w-full border-collapse border bulk-shift-table">
-                            <thead><tr id="bulkShiftTableDateHeader"></tr></thead>
-                            <tbody id="bulkShiftTableBody"></tbody>
-                            <tfoot>
-                                <tr id="bulkShiftTableBreakTimesRow"></tr>
-                                <tr id="bulkShiftTableShortageHoursRow"></tr>
-                            </tfoot>
-                        </table>
-                    </div>
+                <div class="overflow-x-auto bulk-shift-container" style="max-width: 100vw;">
+                    <table id="bulkShiftTable" class="min-w-full border-collapse border bulk-shift-table">
+                        <thead><tr id="bulkShiftTableDateHeader"></tr></thead>
+                        <tbody id="bulkShiftTableBody"></tbody>
+                        <tfoot>
+                            <tr id="bulkShiftTableBreakTimesRow"></tr>
+                            <tr id="bulkShiftTableShortageHoursRow"></tr>
+                        </tfoot>
+                    </table>
                 </div>`;
 
             const navButtons = { calendar: document.getElementById('showCalendarViewBtn'), dailyChart: document.getElementById('showDailyChartViewBtn'), bulkShift: document.getElementById('showBulkShiftViewBtn') };
@@ -954,8 +952,9 @@
                         let cumulativeLeft = nameColumnWidth;
                         
                         dateHeaders.forEach((th) => {
-                            // 横スクロール時の固定位置を設定（縦方向の固定はCSSで維持）
+                            // 横スクロール時の固定位置を設定
                             th.style.left = `${cumulativeLeft}px`;
+                            // 縦スクロール時に画面上部に固定（CSSでtop: 0が設定されている）
                             th.style.position = 'sticky';
                             th.style.top = '0';
                             th.style.zIndex = '20';

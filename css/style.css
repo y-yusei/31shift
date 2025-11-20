@@ -121,6 +121,10 @@ input:focus, select:focus {
 }
 
 /* === 一括シフトテーブル === */
+.bulk-shift-container {
+    position: relative;
+    /* overflow-x-autoは横スクロールのみ、縦方向のstickyには影響しない */
+}
 .bulk-shift-table th, .bulk-shift-table td { 
     border: 1px solid var(--border-color); 
 }
@@ -141,10 +145,10 @@ input:focus, select:focus {
     z-index: 30; 
 }
 .bulk-shift-table thead th:not(:first-child) { 
-    position: sticky !important; 
-    top: 0 !important; 
+    position: sticky; 
+    top: 0; 
     z-index: 20; 
-    background-color: var(--bg-accent) !important;
+    background-color: var(--bg-accent);
 }
 .bulk-shift-table tfoot th { 
     background-color: var(--bg-accent); 
