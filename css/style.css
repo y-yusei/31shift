@@ -244,3 +244,62 @@ input:focus, select:focus {
         opacity: 1;
     }
 }
+
+/* === シフト提出テーブル === */
+.wish-time-input {
+    border: none;
+    background-color: transparent;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.wish-time-input:focus {
+    font-size: 1rem !important; /* 16px以上でズームを防ぐ */
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--primary-brand);
+    border-radius: 0.25rem;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+}
+
+/* シフト提出テーブルのスタイル */
+#shiftWishTableContainer table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#shiftWishTableContainer table th,
+#shiftWishTableContainer table td {
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+}
+
+#shiftWishTableContainer table thead th {
+    background-color: var(--bg-accent);
+    font-weight: 600;
+}
+
+#shiftWishTableContainer table tbody tr:hover {
+    background-color: var(--bg-accent);
+}
+
+/* 管理者用テーブルのスタイル */
+#managerWishTableContainer table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#managerWishTableContainer table th,
+#managerWishTableContainer table td {
+    border: 1px solid var(--border-color);
+    padding: 0.5rem;
+}
+
+#managerWishTableContainer table thead th {
+    background-color: var(--bg-accent);
+    font-weight: 600;
+}
+
+#managerWishTableContainer table tbody tr:hover {
+    background-color: var(--bg-accent);
+}

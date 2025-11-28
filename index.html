@@ -1056,15 +1056,25 @@
                 const year = wishDisplayMonth.getFullYear();
                 const month = wishDisplayMonth.getMonth() + 1;
                 try {
-                    const response = await fetch(`${API_BASE_URL}/api/shift-wishes?userId=${currentUser.id}&periodType=${wishPeriodType}&periodYear=${year}&periodMonth=${month}`);
-                    if (!response.ok) throw new Error('API Error');
+                    const url = `${API_BASE_URL}/api/shift-wishes?userId=${currentUser.id}&periodType=${wishPeriodType}&periodYear=${year}&periodMonth=${month}`;
+                    console.log('シフト希望データ取得:', url);
+                    const response = await fetch(url);
+                    console.log('レスポンス:', response.status, response.statusText);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('APIエラー:', errorText);
+                        throw new Error(`API Error: ${response.status} ${errorText}`);
+                    }
                     const data = await response.json();
+                    console.log('取得データ:', data);
                     wishData = {};
                     (data.wishes || []).forEach((wish) => {
                         wishData[wish.shift_date] = wish.time || '';
                     });
+                    console.log('wishData更新:', wishData);
                 } catch (error) {
                     console.error('シフト希望データの取得に失敗:', error);
+                    alert('シフト希望データの取得に失敗しました。バックエンドがデプロイされているか確認してください。');
                 }
             }
 
@@ -1078,7 +1088,7 @@
                 const days = getDaysInPeriod(year, month, wishPeriodType);
 
                 let html = `
-                    <table class="min-w-full border-collapse border" style="border-color: var(--border-color);">
+                    <table class="min-w-full border-collapse border bulk-shift-table" style="border-color: var(--border-color);">
                         <thead>
                             <tr>
                                 <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">日付</th>
@@ -1098,13 +1108,14 @@
                             </td>
                             <td class="p-0 border" style="border-color: var(--border-color);">
                                 <input type="text" 
-                                    class="wish-time-input w-full p-2 text-center" 
+                                    class="wish-time-input w-full p-2 text-center bg-transparent border-0" 
                                     value="${currentValue}" 
                                     data-date="${dateString}"
                                     placeholder="例: 9:00-18:00"
                                     data-period-type="${wishPeriodType}"
                                     data-period-year="${year}"
-                                    data-period-month="${month}">
+                                    data-period-month="${month}"
+                                    style="border-color: var(--border-color);">
                             </td>
                         </tr>
                     `;
@@ -1118,43 +1129,69 @@
             async function submitShiftWishes() {
                 if (currentUser.role === 'manager') return;
                 const inputs = document.querySelectorAll('.wish-time-input');
+                if (inputs.length === 0) {
+                    alert('提出するデータがありません。');
+                    return;
+                }
+                
                 const year = wishDisplayMonth.getFullYear();
                 const month = wishDisplayMonth.getMonth() + 1;
                 let successCount = 0;
                 let errorCount = 0;
+                const errors = [];
+
+                console.log('提出開始:', { userId: currentUser.id, periodType: wishPeriodType, year, month, inputCount: inputs.length });
 
                 for (const input of inputs) {
                     const date = input.getAttribute('data-date');
                     const time = input.value.trim();
                     const normalized = normalizeShiftTimeInput(time);
                     
+                    console.log('処理中:', { date, time, normalized });
+                    
                     if (normalized && !isValidShiftTimeFormat(normalized) && normalized !== '') {
-                        alert(`日付 ${date} の時間形式が正しくありません。`);
+                        const errorMsg = `日付 ${date} の時間形式が正しくありません。`;
+                        console.error(errorMsg);
+                        errors.push(errorMsg);
                         errorCount++;
                         continue;
                     }
 
                     try {
+                        const requestBody = {
+                            userId: currentUser.id,
+                            shiftDate: date,
+                            time: normalized || null,
+                            periodType: wishPeriodType,
+                            periodYear: year,
+                            periodMonth: month
+                        };
+                        console.log('APIリクエスト:', requestBody);
+                        
                         const response = await fetch(`${API_BASE_URL}/api/submit-shift-wish`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                userId: currentUser.id,
-                                shiftDate: date,
-                                time: normalized || null,
-                                periodType: wishPeriodType,
-                                periodYear: year,
-                                periodMonth: month
-                            })
+                            body: JSON.stringify(requestBody)
                         });
 
+                        console.log('APIレスポンス:', response.status, response.statusText);
+
                         if (!response.ok) {
-                            const error = await response.json();
-                            throw new Error(error.error || '提出に失敗しました');
+                            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+                            const errorMsg = errorData.error || errorData.message || '提出に失敗しました';
+                            console.error('APIエラー:', errorData);
+                            errors.push(`${date}: ${errorMsg}`);
+                            throw new Error(errorMsg);
                         }
+                        
+                        const result = await response.json();
+                        console.log('提出成功:', result);
                         successCount++;
                     } catch (error) {
                         console.error(`日付 ${date} の提出エラー:`, error);
+                        if (!errors.some(e => e.includes(date))) {
+                            errors.push(`${date}: ${error.message || error}`);
+                        }
                         errorCount++;
                     }
                 }
@@ -1164,7 +1201,8 @@
                     await loadWishData();
                     renderShiftWishTable();
                 } else {
-                    alert(`${successCount}件の提出に成功しましたが、${errorCount}件でエラーが発生しました。`);
+                    const errorMessage = errors.length > 0 ? '\n\nエラー詳細:\n' + errors.join('\n') : '';
+                    alert(`${successCount}件の提出に成功しましたが、${errorCount}件でエラーが発生しました。${errorMessage}`);
                 }
             }
 
@@ -1200,7 +1238,7 @@
                 }
 
                 let html = `
-                    <table class="min-w-full border-collapse border" style="border-color: var(--border-color);">
+                    <table class="min-w-full border-collapse border bulk-shift-table" style="border-color: var(--border-color);">
                         <thead>
                             <tr>
                                 <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">従業員</th>
