@@ -65,6 +65,9 @@
                     <button id="showBulkShiftViewBtn" class="nav-button text-white font-bold py-2 px-4 rounded-lg bg-teal-500 hover:bg-teal-600">
                         <i class="fas fa-table mr-2"></i>一括入力
                     </button>
+                    <button id="showShiftWishViewBtn" class="nav-button text-white font-bold py-2 px-4 rounded-lg bg-orange-500 hover:bg-orange-600">
+                        <i class="fas fa-paper-plane mr-2"></i>シフト提出
+                    </button>
                 </nav>
             </header>
 
@@ -76,6 +79,9 @@
                     </div>
                 
                 <div id="bulkShiftView" class="main-view card p-6 hidden">
+                    </div>
+                
+                <div id="shiftWishView" class="main-view card p-6 hidden">
                     </div>
             </main>
 
@@ -135,7 +141,8 @@
             const mainViews = { 
                 calendar: document.getElementById('calendarView'), 
                 dailyChart: document.getElementById('dailyChartView'), 
-                bulkShift: document.getElementById('bulkShiftView') 
+                bulkShift: document.getElementById('bulkShiftView'),
+                shiftWish: document.getElementById('shiftWishView')
             };
             
             mainViews.calendar.innerHTML = `
@@ -200,7 +207,69 @@
                     </div>
                 </div>`;
 
-            const navButtons = { calendar: document.getElementById('showCalendarViewBtn'), dailyChart: document.getElementById('showDailyChartViewBtn'), bulkShift: document.getElementById('showBulkShiftViewBtn') };
+            // シフト提出ビュー（従業員用・管理者用で分岐）
+            mainViews.shiftWish.innerHTML = `
+                <div id="shiftWishEmployeeView" class="${currentUser.role === 'manager' ? 'hidden' : ''}">
+                    <h2 class="text-2xl font-semibold mb-4">シフト希望提出</h2>
+                    <div class="mb-4 p-4 bg-blue-50 rounded-lg">
+                        <p class="text-sm text-blue-800">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            前半期間（1-15日）と後半期間（16日-月末）に分けて提出してください。
+                        </p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
+                        <div class="flex items-center gap-2">
+                            <label for="wishPeriodSelect" class="text-sm font-medium">提出期間:</label>
+                            <select id="wishPeriodSelect" class="p-2 border rounded-md shadow-sm text-sm">
+                                <option value="first_half">前半 (1-15日)</option>
+                                <option value="second_half">後半 (16日-月末)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center">
+                            <button id="prevMonthWishBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-3 rounded-l-lg transition"><i class="fas fa-angle-double-left"></i>前月</button>
+                            <span id="wishMonthYear" class="font-semibold text-lg mx-4"></span>
+                            <button id="nextMonthWishBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-3 rounded-r-lg transition">次月<i class="fas fa-angle-double-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <div class="text-xs text-slate-500 mb-2">入力形式: 「9:00-18:00」「930-1830」「9-18」など</div>
+                        <div id="shiftWishTableContainer" class="overflow-x-auto"></div>
+                    </div>
+                    <div class="flex justify-end gap-2">
+                        <button id="submitWishBtn" class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-lg transition">
+                            <i class="fas fa-paper-plane mr-2"></i>提出する
+                        </button>
+                    </div>
+                </div>
+                <div id="shiftWishManagerView" class="${currentUser.role === 'manager' ? '' : 'hidden'}">
+                    <h2 class="text-2xl font-semibold mb-4">提出シフト確認・承認</h2>
+                    <div class="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4">
+                        <div class="flex items-center gap-2">
+                            <label for="managerWishPeriodSelect" class="text-sm font-medium">期間:</label>
+                            <select id="managerWishPeriodSelect" class="p-2 border rounded-md shadow-sm text-sm">
+                                <option value="first_half">前半 (1-15日)</option>
+                                <option value="second_half">後半 (16日-月末)</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center">
+                            <button id="prevMonthManagerWishBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-3 rounded-l-lg transition"><i class="fas fa-angle-double-left"></i>前月</button>
+                            <span id="managerWishMonthYear" class="font-semibold text-lg mx-4"></span>
+                            <button id="nextMonthManagerWishBtn" class="bg-slate-200 hover:bg-slate-300 font-bold py-2 px-3 rounded-r-lg transition">次月<i class="fas fa-angle-double-right"></i></button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="managerWishStatusFilter" class="text-sm font-medium">ステータス:</label>
+                            <select id="managerWishStatusFilter" class="p-2 border rounded-md shadow-sm text-sm">
+                                <option value="">すべて</option>
+                                <option value="pending">未承認</option>
+                                <option value="approved">承認済み</option>
+                                <option value="rejected">却下</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="managerWishTableContainer" class="overflow-x-auto"></div>
+                </div>`;
+
+            const navButtons = { calendar: document.getElementById('showCalendarViewBtn'), dailyChart: document.getElementById('showDailyChartViewBtn'), bulkShift: document.getElementById('showBulkShiftViewBtn'), shiftWish: document.getElementById('showShiftWishViewBtn') };
             const shiftDetailModal = document.getElementById('shiftDetailModal');
             const modalContent = document.getElementById('modalContent');
             const currentUserInfo = document.getElementById('currentUserInfo');
@@ -214,6 +283,14 @@
             let bulkViewIsFirstHalf = today.getDate() <= 15;
             let selectedEmployeeForHighlight = null;
             let selectedEmployeeForChart = null;
+            
+            // シフト提出関連の変数
+            let wishDisplayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            let wishPeriodType = today.getDate() <= 15 ? 'first_half' : 'second_half';
+            let wishData = {}; // 提出データの一時保存
+            let managerWishDisplayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            let managerWishPeriodType = today.getDate() <= 15 ? 'first_half' : 'second_half';
+            let managerWishStatusFilter = '';
             
             // --- Helper Functions ---
             function formatTime(d) { return `${('0' + d.getHours()).slice(-2)}:${('0' + d.getMinutes()).slice(-2)}`; }
@@ -677,6 +754,15 @@
                     }
                 }
                 else if (viewKey === 'bulkShift') targetDate = bulkViewDisplayMonth;
+                else if (viewKey === 'shiftWish') {
+                    if (currentUser.role === 'manager') {
+                        await loadManagerWishData();
+                    } else {
+                        await loadWishData();
+                        renderShiftWishTable();
+                    }
+                    return;
+                }
                 await fetchDataForMonth(targetDate);
             }
             
@@ -692,6 +778,13 @@
                     renderDailyShiftChart();
                 }
                 else if (!mainViews.bulkShift.classList.contains('hidden')) renderBulkShiftTable();
+                else if (!mainViews.shiftWish.classList.contains('hidden')) {
+                    if (currentUser.role === 'manager') {
+                        loadManagerWishData();
+                    } else {
+                        loadWishData().then(() => renderShiftWishTable());
+                    }
+                }
             }
 
             function renderCalendar() {
@@ -946,6 +1039,258 @@
                 setupBulkTableA11yFocus();
             }
             
+            // --- シフト提出関連の関数 ---
+            function getDaysInPeriod(year, month, periodType) {
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                const startDay = periodType === 'first_half' ? 1 : 16;
+                const endDay = periodType === 'first_half' ? 15 : lastDay;
+                const days = [];
+                for (let day = startDay; day <= endDay; day++) {
+                    days.push(new Date(year, month, day));
+                }
+                return days;
+            }
+
+            async function loadWishData() {
+                if (currentUser.role === 'manager') return;
+                const year = wishDisplayMonth.getFullYear();
+                const month = wishDisplayMonth.getMonth() + 1;
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/shift-wishes?userId=${currentUser.id}&periodType=${wishPeriodType}&periodYear=${year}&periodMonth=${month}`);
+                    if (!response.ok) throw new Error('API Error');
+                    const data = await response.json();
+                    wishData = {};
+                    (data.wishes || []).forEach((wish) => {
+                        wishData[wish.shift_date] = wish.time || '';
+                    });
+                } catch (error) {
+                    console.error('シフト希望データの取得に失敗:', error);
+                }
+            }
+
+            function renderShiftWishTable() {
+                if (currentUser.role === 'manager') return;
+                const container = document.getElementById('shiftWishTableContainer');
+                if (!container) return;
+
+                const year = wishDisplayMonth.getFullYear();
+                const month = wishDisplayMonth.getMonth();
+                const days = getDaysInPeriod(year, month, wishPeriodType);
+
+                let html = `
+                    <table class="min-w-full border-collapse border" style="border-color: var(--border-color);">
+                        <thead>
+                            <tr>
+                                <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">日付</th>
+                                <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">希望時間</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                days.forEach(date => {
+                    const dateString = formatDate(date);
+                    const currentValue = wishData[dateString] || '';
+                    html += `
+                        <tr>
+                            <td class="p-2 border text-center" style="border-color: var(--border-color);">
+                                ${formatDateToJapaneseShort(date)}
+                            </td>
+                            <td class="p-0 border" style="border-color: var(--border-color);">
+                                <input type="text" 
+                                    class="wish-time-input w-full p-2 text-center" 
+                                    value="${currentValue}" 
+                                    data-date="${dateString}"
+                                    placeholder="例: 9:00-18:00"
+                                    data-period-type="${wishPeriodType}"
+                                    data-period-year="${year}"
+                                    data-period-month="${month}">
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table>`;
+                container.innerHTML = html;
+                document.getElementById('wishMonthYear').textContent = `${year}年 ${month + 1}月`;
+            }
+
+            async function submitShiftWishes() {
+                if (currentUser.role === 'manager') return;
+                const inputs = document.querySelectorAll('.wish-time-input');
+                const year = wishDisplayMonth.getFullYear();
+                const month = wishDisplayMonth.getMonth() + 1;
+                let successCount = 0;
+                let errorCount = 0;
+
+                for (const input of inputs) {
+                    const date = input.getAttribute('data-date');
+                    const time = input.value.trim();
+                    const normalized = normalizeShiftTimeInput(time);
+                    
+                    if (normalized && !isValidShiftTimeFormat(normalized) && normalized !== '') {
+                        alert(`日付 ${date} の時間形式が正しくありません。`);
+                        errorCount++;
+                        continue;
+                    }
+
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/submit-shift-wish`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                userId: currentUser.id,
+                                shiftDate: date,
+                                time: normalized || null,
+                                periodType: wishPeriodType,
+                                periodYear: year,
+                                periodMonth: month
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || '提出に失敗しました');
+                        }
+                        successCount++;
+                    } catch (error) {
+                        console.error(`日付 ${date} の提出エラー:`, error);
+                        errorCount++;
+                    }
+                }
+
+                if (errorCount === 0) {
+                    alert('シフト希望を提出しました。');
+                    await loadWishData();
+                    renderShiftWishTable();
+                } else {
+                    alert(`${successCount}件の提出に成功しましたが、${errorCount}件でエラーが発生しました。`);
+                }
+            }
+
+            async function loadManagerWishData() {
+                if (currentUser.role !== 'manager') return;
+                const year = managerWishDisplayMonth.getFullYear();
+                const month = managerWishDisplayMonth.getMonth() + 1;
+                try {
+                    let url = `${API_BASE_URL}/api/shift-wishes?periodType=${managerWishPeriodType}&periodYear=${year}&periodMonth=${month}`;
+                    if (managerWishStatusFilter) {
+                        url += `&status=${managerWishStatusFilter}`;
+                    }
+                    const response = await fetch(url);
+                    if (!response.ok) throw new Error('API Error');
+                    const data = await response.json();
+                    renderManagerWishTable(data.wishes || []);
+                } catch (error) {
+                    console.error('提出シフトデータの取得に失敗:', error);
+                }
+            }
+
+            function renderManagerWishTable(wishes) {
+                const container = document.getElementById('managerWishTableContainer');
+                if (!container) return;
+
+                const year = managerWishDisplayMonth.getFullYear();
+                const month = managerWishDisplayMonth.getMonth() + 1;
+                document.getElementById('managerWishMonthYear').textContent = `${year}年 ${month}月`;
+
+                if (wishes.length === 0) {
+                    container.innerHTML = '<p class="text-center text-slate-500 py-8">提出されたシフト希望がありません。</p>';
+                    return;
+                }
+
+                let html = `
+                    <table class="min-w-full border-collapse border" style="border-color: var(--border-color);">
+                        <thead>
+                            <tr>
+                                <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">従業員</th>
+                                <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">日付</th>
+                                <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">希望時間</th>
+                                <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">ステータス</th>
+                                <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">提出日時</th>
+                                <th class="p-2 text-sm font-medium border" style="border-color: var(--border-color);">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                wishes.forEach((wish) => {
+                    const statusColors = {
+                        pending: 'bg-yellow-100 text-yellow-800',
+                        approved: 'bg-green-100 text-green-800',
+                        rejected: 'bg-red-100 text-red-800'
+                    };
+                    const statusText = {
+                        pending: '未承認',
+                        approved: '承認済み',
+                        rejected: '却下'
+                    };
+                    html += `
+                        <tr>
+                            <td class="p-2 border" style="border-color: var(--border-color);">${wish.userName || '不明'}</td>
+                            <td class="p-2 border text-center" style="border-color: var(--border-color);">${wish.shift_date}</td>
+                            <td class="p-2 border text-center" style="border-color: var(--border-color);">${wish.time || '未入力'}</td>
+                            <td class="p-2 border text-center" style="border-color: var(--border-color);">
+                                <span class="px-2 py-1 rounded text-xs ${statusColors[wish.status] || ''}">${statusText[wish.status] || wish.status}</span>
+                            </td>
+                            <td class="p-2 border text-center text-xs" style="border-color: var(--border-color);">${wish.submitted_at || ''}</td>
+                            <td class="p-2 border text-center" style="border-color: var(--border-color);">
+                                ${wish.status === 'pending' ? `
+                                    <button class="approve-wish-btn bg-green-500 hover:bg-green-600 text-white text-xs py-1 px-3 rounded mr-1" data-wish-id="${wish.id}">承認</button>
+                                    <button class="reject-wish-btn bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded" data-wish-id="${wish.id}">却下</button>
+                                ` : ''}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `</tbody></table>`;
+                container.innerHTML = html;
+
+                // 承認・却下ボタンのイベントリスナー
+                container.querySelectorAll('.approve-wish-btn').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const wishId = e.target.getAttribute('data-wish-id');
+                        if (!wishId) return;
+                        if (!confirm('このシフト希望を承認して、シフトに反映しますか？')) return;
+                        
+                        try {
+                            const response = await fetch(`${API_BASE_URL}/api/approve-shift-wish`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ wishId: parseInt(wishId) })
+                            });
+                            if (!response.ok) throw new Error('承認に失敗しました');
+                            alert('シフト希望を承認しました。');
+                            await loadManagerWishData();
+                        } catch (error) {
+                            alert(`承認に失敗しました: ${error.message || error}`);
+                        }
+                    });
+                });
+
+                container.querySelectorAll('.reject-wish-btn').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const wishId = e.target.getAttribute('data-wish-id');
+                        if (!wishId) return;
+                        if (!confirm('このシフト希望を却下しますか？')) return;
+                        
+                        try {
+                            const response = await fetch(`${API_BASE_URL}/api/reject-shift-wish`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ wishId: parseInt(wishId) })
+                            });
+                            if (!response.ok) throw new Error('却下に失敗しました');
+                            alert('シフト希望を却下しました。');
+                            await loadManagerWishData();
+                        } catch (error) {
+                            alert(`却下に失敗しました: ${error.message || error}`);
+                        }
+                    });
+                });
+            }
+
             function showShiftDetailModal(date) {
                 const dateString = formatDate(date);
                 modalContent.innerHTML = ''; 
@@ -1051,6 +1396,55 @@
             document.getElementById('prevMonthBulkBtn').addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() - 1); fetchDataForMonth(bulkViewDisplayMonth); });
             document.getElementById('nextMonthBulkBtn').addEventListener('click', () => { bulkViewDisplayMonth.setMonth(bulkViewDisplayMonth.getMonth() + 1); fetchDataForMonth(bulkViewDisplayMonth); });
             document.getElementById('toggleBulkShiftPeriodBtn').addEventListener('click', () => { bulkViewIsFirstHalf = !bulkViewIsFirstHalf; renderBulkShiftTable(); });
+            
+            // シフト提出ビューのイベントリスナー
+            if (document.getElementById('wishPeriodSelect')) {
+                document.getElementById('wishPeriodSelect').addEventListener('change', (e) => {
+                    wishPeriodType = e.target.value;
+                    loadWishData().then(() => renderShiftWishTable());
+                });
+            }
+            if (document.getElementById('prevMonthWishBtn')) {
+                document.getElementById('prevMonthWishBtn').addEventListener('click', () => {
+                    wishDisplayMonth.setMonth(wishDisplayMonth.getMonth() - 1);
+                    loadWishData().then(() => renderShiftWishTable());
+                });
+            }
+            if (document.getElementById('nextMonthWishBtn')) {
+                document.getElementById('nextMonthWishBtn').addEventListener('click', () => {
+                    wishDisplayMonth.setMonth(wishDisplayMonth.getMonth() + 1);
+                    loadWishData().then(() => renderShiftWishTable());
+                });
+            }
+            if (document.getElementById('submitWishBtn')) {
+                document.getElementById('submitWishBtn').addEventListener('click', submitShiftWishes);
+            }
+            
+            // 管理者用シフト提出ビューのイベントリスナー
+            if (document.getElementById('managerWishPeriodSelect')) {
+                document.getElementById('managerWishPeriodSelect').addEventListener('change', (e) => {
+                    managerWishPeriodType = e.target.value;
+                    loadManagerWishData();
+                });
+            }
+            if (document.getElementById('managerWishStatusFilter')) {
+                document.getElementById('managerWishStatusFilter').addEventListener('change', (e) => {
+                    managerWishStatusFilter = e.target.value;
+                    loadManagerWishData();
+                });
+            }
+            if (document.getElementById('prevMonthManagerWishBtn')) {
+                document.getElementById('prevMonthManagerWishBtn').addEventListener('click', () => {
+                    managerWishDisplayMonth.setMonth(managerWishDisplayMonth.getMonth() - 1);
+                    loadManagerWishData();
+                });
+            }
+            if (document.getElementById('nextMonthManagerWishBtn')) {
+                document.getElementById('nextMonthManagerWishBtn').addEventListener('click', () => {
+                    managerWishDisplayMonth.setMonth(managerWishDisplayMonth.getMonth() + 1);
+                    loadManagerWishData();
+                });
+            }
             
             shiftDetailModal.addEventListener('click', (event) => { 
                 if (event.target === shiftDetailModal) {

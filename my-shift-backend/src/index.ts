@@ -186,6 +186,185 @@ export default {
                     return withCors(new Response(JSON.stringify({ success: false, message: 'Invalid credentials' }), { status: 401, headers: { 'Content-Type': 'application/json' }}));
                 }
 
+            // ✅ シフト希望提出用のパス
+            } else if (url.pathname === '/api/submit-shift-wish' && request.method === 'POST') {
+                const { userId, shiftDate, time, periodType, periodYear, periodMonth } = await request.json<any>();
+                if (!userId || !shiftDate || !periodType || !periodYear || !periodMonth) {
+                    return withCors(new Response('userId, shiftDate, periodType, periodYear, and periodMonth are required', { status: 400 }));
+                }
+
+                // 提出期間の検証
+                const date = new Date(shiftDate + 'T00:00:00');
+                const day = date.getDate();
+                const isValidPeriod = 
+                    (periodType === 'first_half' && day >= 1 && day <= 15) ||
+                    (periodType === 'second_half' && day >= 16);
+                
+                if (!isValidPeriod) {
+                    return withCors(new Response(JSON.stringify({ 
+                        success: false, 
+                        error: '提出期間が正しくありません。前半期間は1-15日、後半期間は16日以降です。' 
+                    }), { status: 400, headers: { 'Content-Type': 'application/json' } }));
+                }
+
+                try {
+                    // 既存の提出を更新、なければ新規作成
+                    await env.DB.prepare(`
+                        INSERT OR REPLACE INTO shift_wishes 
+                        (user_id, shift_date, time, period_type, period_year, period_month, status, submitted_at)
+                        VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now', 'localtime'))
+                    `).bind(userId, shiftDate, time || null, periodType, periodYear, periodMonth).run();
+                    
+                    return withCors(new Response(JSON.stringify({ success: true }), { 
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                } catch (error: any) {
+                    console.error('シフト希望提出エラー:', error);
+                    return withCors(new Response(JSON.stringify({ 
+                        success: false, 
+                        error: error.message 
+                    }), { 
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                }
+
+            // ✅ シフト希望取得用のパス
+            } else if (url.pathname === '/api/shift-wishes' && request.method === 'GET') {
+                const userId = url.searchParams.get('userId');
+                const periodType = url.searchParams.get('periodType');
+                const periodYear = url.searchParams.get('periodYear');
+                const periodMonth = url.searchParams.get('periodMonth');
+                const status = url.searchParams.get('status');
+
+                let query = 'SELECT sw.*, u.name as userName FROM shift_wishes sw LEFT JOIN users u ON sw.user_id = u.id WHERE 1=1';
+                const params: any[] = [];
+
+                if (userId) {
+                    query += ' AND sw.user_id = ?';
+                    params.push(userId);
+                }
+                if (periodType) {
+                    query += ' AND sw.period_type = ?';
+                    params.push(periodType);
+                }
+                if (periodYear) {
+                    query += ' AND sw.period_year = ?';
+                    params.push(periodYear);
+                }
+                if (periodMonth) {
+                    query += ' AND sw.period_month = ?';
+                    params.push(periodMonth);
+                }
+                if (status) {
+                    query += ' AND sw.status = ?';
+                    params.push(status);
+                }
+
+                query += ' ORDER BY sw.shift_date, sw.user_id';
+
+                try {
+                    const stmt = env.DB.prepare(query);
+                    if (params.length > 0) {
+                        const result = await stmt.bind(...params).all();
+                        return withCors(new Response(JSON.stringify({ success: true, wishes: result.results }), {
+                            status: 200,
+                            headers: { 'Content-Type': 'application/json' }
+                        }));
+                    } else {
+                        const result = await stmt.all();
+                        return withCors(new Response(JSON.stringify({ success: true, wishes: result.results }), {
+                            status: 200,
+                            headers: { 'Content-Type': 'application/json' }
+                        }));
+                    }
+                } catch (error: any) {
+                    console.error('シフト希望取得エラー:', error);
+                    return withCors(new Response(JSON.stringify({ 
+                        success: false, 
+                        error: error.message 
+                    }), { 
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                }
+
+            // ✅ シフト希望承認用のパス（shiftsテーブルに反映）
+            } else if (url.pathname === '/api/approve-shift-wish' && request.method === 'POST') {
+                const { wishId } = await request.json<any>();
+                if (!wishId) {
+                    return withCors(new Response('wishId is required', { status: 400 }));
+                }
+
+                try {
+                    // シフト希望を取得
+                    const wishResult = await env.DB.prepare('SELECT * FROM shift_wishes WHERE id = ?').bind(wishId).first();
+                    if (!wishResult) {
+                        return withCors(new Response(JSON.stringify({ 
+                            success: false, 
+                            error: 'シフト希望が見つかりません' 
+                        }), { 
+                            status: 404,
+                            headers: { 'Content-Type': 'application/json' }
+                        }));
+                    }
+
+                    const wish: any = wishResult;
+
+                    // shiftsテーブルに反映
+                    if (wish.time) {
+                        await env.DB.prepare('DELETE FROM shifts WHERE user_id = ? AND shift_date = ?')
+                            .bind(wish.user_id, wish.shift_date).run();
+                        await env.DB.prepare('INSERT INTO shifts (user_id, shift_date, time) VALUES (?, ?, ?)')
+                            .bind(wish.user_id, wish.shift_date, wish.time).run();
+                    }
+
+                    // シフト希望のステータスを更新
+                    await env.DB.prepare('UPDATE shift_wishes SET status = ?, approved_at = datetime(\'now\', \'localtime\') WHERE id = ?')
+                        .bind('approved', wishId).run();
+
+                    return withCors(new Response(JSON.stringify({ success: true }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                } catch (error: any) {
+                    console.error('シフト希望承認エラー:', error);
+                    return withCors(new Response(JSON.stringify({ 
+                        success: false, 
+                        error: error.message 
+                    }), { 
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                }
+
+            // ✅ シフト希望却下用のパス
+            } else if (url.pathname === '/api/reject-shift-wish' && request.method === 'POST') {
+                const { wishId } = await request.json<any>();
+                if (!wishId) {
+                    return withCors(new Response('wishId is required', { status: 400 }));
+                }
+
+                try {
+                    await env.DB.prepare('UPDATE shift_wishes SET status = ? WHERE id = ?')
+                        .bind('rejected', wishId).run();
+
+                    return withCors(new Response(JSON.stringify({ success: true }), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                } catch (error: any) {
+                    console.error('シフト希望却下エラー:', error);
+                    return withCors(new Response(JSON.stringify({ 
+                        success: false, 
+                        error: error.message 
+                    }), { 
+                        status: 500,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
+                }
+
             } else if (url.pathname === '/') {
                 return withCors(new Response('Shift Management API is running!'));
             }
